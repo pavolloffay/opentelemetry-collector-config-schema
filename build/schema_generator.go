@@ -181,22 +181,17 @@ func (sg *SchemaGenerator) generateJSONSchema(config component.Config) (map[stri
 	}
 
 	properties := schema["properties"].(map[string]interface{})
-	required := []string{}
 
 	// Analyze struct fields
-	if err := sg.analyzeStructFields(configType, properties, &required); err != nil {
+	if err := sg.analyzeStructFields(configType, properties); err != nil {
 		return nil, err
-	}
-
-	if len(required) > 0 {
-		schema["required"] = required
 	}
 
 	return schema, nil
 }
 
 // analyzeStructFields recursively analyzes struct fields to build JSON schema properties
-func (sg *SchemaGenerator) analyzeStructFields(structType reflect.Type, properties map[string]interface{}, required *[]string) error {
+func (sg *SchemaGenerator) analyzeStructFields(structType reflect.Type, properties map[string]interface{}) error {
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
 
@@ -207,7 +202,7 @@ func (sg *SchemaGenerator) analyzeStructFields(structType reflect.Type, properti
 
 		// Handle embedded/anonymous fields by flattening them
 		if field.Anonymous {
-			if err := sg.handleEmbeddedField(field, properties, required); err != nil {
+			if err := sg.handleEmbeddedField(field, properties); err != nil {
 				return fmt.Errorf("failed to handle embedded field %s: %w", field.Name, err)
 			}
 			continue
@@ -220,23 +215,19 @@ func (sg *SchemaGenerator) analyzeStructFields(structType reflect.Type, properti
 		}
 
 		// Generate property schema for this field
-		property, isRequired, err := sg.generatePropertySchema(field, structType)
+		property, err := sg.generatePropertySchema(field, structType)
 		if err != nil {
 			return fmt.Errorf("failed to generate property schema for field %s: %w", field.Name, err)
 		}
 
 		properties[fieldName] = property
-
-		if isRequired {
-			*required = append(*required, fieldName)
-		}
 	}
 
 	return nil
 }
 
 // handleEmbeddedField handles anonymous/embedded struct fields by flattening their properties
-func (sg *SchemaGenerator) handleEmbeddedField(field reflect.StructField, properties map[string]interface{}, required *[]string) error {
+func (sg *SchemaGenerator) handleEmbeddedField(field reflect.StructField, properties map[string]interface{}) error {
 	fieldType := field.Type
 
 	// Handle pointer to embedded struct
@@ -250,7 +241,7 @@ func (sg *SchemaGenerator) handleEmbeddedField(field reflect.StructField, proper
 	}
 
 	// Recursively analyze the embedded struct's fields
-	return sg.analyzeStructFields(fieldType, properties, required)
+	return sg.analyzeStructFields(fieldType, properties)
 }
 
 // getFieldName gets the field name for JSON, preferring mapstructure tag
@@ -276,21 +267,13 @@ func (sg *SchemaGenerator) getFieldName(field reflect.StructField) string {
 }
 
 // generatePropertySchema generates a JSON schema property for a struct field
-func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, parentType reflect.Type) (map[string]interface{}, bool, error) {
+func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, parentType reflect.Type) (map[string]interface{}, error) {
 	property := make(map[string]interface{})
 	fieldType := field.Type
-	isRequired := false
 
 	// Handle pointers
 	if fieldType.Kind() == reflect.Ptr {
 		fieldType = fieldType.Elem()
-	} else {
-		// Non-pointer fields are generally required unless they have omitempty
-		tags := field.Tag.Get("mapstructure")
-		jsonTags := field.Tag.Get("json")
-		if !strings.Contains(tags, "omitempty") && !strings.Contains(jsonTags, "omitempty") {
-			isRequired = true
-		}
 	}
 
 	// Check for special types first, before basic type handling
@@ -302,7 +285,7 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, par
 		property["type"] = "string"
 		property["pattern"] = "^[0-9]+(ns|us|µs|ms|s|m|h)$"
 		property["description"] = "Duration string (e.g., '1s', '5m', '1h')"
-		return property, isRequired, nil
+		return property, nil
 	}
 
 	// Set type and other properties based on Go type
@@ -322,7 +305,7 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, par
 		// Recursively determine item type
 		itemSchema, err := sg.generateTypeSchema(fieldType.Elem())
 		if err != nil {
-			return nil, false, fmt.Errorf("failed to generate array item schema: %w", err)
+			return nil, fmt.Errorf("failed to generate array item schema: %w", err)
 		}
 		property["items"] = itemSchema
 	case reflect.Map:
@@ -348,7 +331,7 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, par
 		case strings.HasPrefix(typeName, "Optional") && strings.Contains(pkgPath, "configoptional"):
 			// Handle configoptional.Optional[T] types by unwrapping them
 			if unwrappedSchema, err := sg.unwrapOptionalType(fieldType); err == nil {
-				return unwrappedSchema, false, nil // Optional types are never required
+				return unwrappedSchema, nil
 			}
 			// Fallback to object if unwrapping fails
 			property["type"] = "object"
@@ -356,17 +339,13 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, par
 			// For other structs, recursively analyze their fields
 			property["type"] = "object"
 			nestedProperties := make(map[string]interface{})
-			nestedRequired := []string{}
 
-			if err := sg.analyzeStructFields(fieldType, nestedProperties, &nestedRequired); err != nil {
-				return nil, false, fmt.Errorf("failed to analyze struct fields: %w", err)
+			if err := sg.analyzeStructFields(fieldType, nestedProperties); err != nil {
+				return nil, fmt.Errorf("failed to analyze struct fields: %w", err)
 			}
 
 			if len(nestedProperties) > 0 {
 				property["properties"] = nestedProperties
-			}
-			if len(nestedRequired) > 0 {
-				property["required"] = nestedRequired
 			}
 		}
 	case reflect.Interface:
@@ -397,7 +376,7 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, par
 		}
 	}
 
-	return property, isRequired, nil
+	return property, nil
 }
 
 // generateTypeSchema generates a schema for a specific reflect.Type
@@ -450,14 +429,10 @@ func (sg *SchemaGenerator) generateTypeSchema(t reflect.Type) (map[string]interf
 		default:
 			schema["type"] = "object"
 			properties := make(map[string]interface{})
-			required := []string{}
 
-			if err := sg.analyzeStructFields(t, properties, &required); err == nil {
+			if err := sg.analyzeStructFields(t, properties); err == nil {
 				if len(properties) > 0 {
 					schema["properties"] = properties
-				}
-				if len(required) > 0 {
-					schema["required"] = required
 				}
 			}
 		}

@@ -35,13 +35,6 @@
           "type": "string"
         }
       },
-      "required": [
-        "host",
-        "port",
-        "username",
-        "password",
-        "timeout"
-      ],
       "type": "object"
     },
     "enable_tracing": {
@@ -229,12 +222,6 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "enabled",
-                "path",
-                "owner_auth",
-                "auth"
-              ],
               "type": "object"
             }
           },
@@ -246,12 +233,6 @@
           "type": "string"
         }
       },
-      "required": [
-        "response_headers",
-        "read_header_timeout",
-        "write_timeout",
-        "idle_timeout"
-      ],
       "type": "object"
     },
     "include_tables": {
@@ -273,12 +254,6 @@
       "type": "object"
     }
   },
-  "required": [
-    "database",
-    "collection_interval",
-    "batch_size",
-    "enable_tracing"
-  ],
   "title": "TestReceiverConfig Configuration",
   "type": "object"
 }
