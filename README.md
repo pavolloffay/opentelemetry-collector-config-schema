@@ -1,0 +1,2 @@
+# OpenTelemetry collector validation tool
+
