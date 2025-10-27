@@ -1,4 +1,4 @@
-package main
+package collectorconfigschema
 
 import (
 	"embed"
@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+
+	"github.com/xeipuuv/gojsonschema"
 )
 
 //go:embed schemas
@@ -79,6 +81,35 @@ func (sm *SchemaManager) GetComponentSchemaJSON(componentType ComponentType, com
 // ListAvailableComponents returns a list of all available components by type
 func (sm *SchemaManager) ListAvailableComponents(version string) (map[ComponentType][]string, error) {
 	return sm.listEmbeddedComponents(version)
+}
+
+// ValidateComponentJSON validates a component configuration JSON against its schema
+func (sm *SchemaManager) ValidateComponentJSON(componentType ComponentType, componentName string, version string, jsonData []byte) (*gojsonschema.Result, error) {
+	// Get the component schema
+	componentSchema, err := sm.GetComponentSchema(componentType, componentName, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schema for %s %s v%s: %w", componentType, componentName, version, err)
+	}
+
+	// Convert schema to JSON bytes for gojsonschema
+	schemaBytes, err := json.Marshal(componentSchema.Schema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal schema for %s %s: %w", componentType, componentName, err)
+	}
+
+	// Create schema loader
+	schemaLoader := gojsonschema.NewBytesLoader(schemaBytes)
+
+	// Create document loader from the provided JSON data
+	documentLoader := gojsonschema.NewBytesLoader(jsonData)
+
+	// Validate the document against the schema
+	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	if err != nil {
+		return nil, fmt.Errorf("validation failed for %s %s: %w", componentType, componentName, err)
+	}
+
+	return result, nil
 }
 
 // listEmbeddedComponents lists components from embedded filesystem
@@ -167,22 +198,4 @@ func isValidComponentType(componentType ComponentType) bool {
 	default:
 		return false
 	}
-}
-
-// GetComponentSchemaByName is a convenience function that gets a component schema
-func GetComponentSchemaByName(componentType ComponentType, componentName string, version string) (*ComponentSchema, error) {
-	manager := NewSchemaManager()
-	return manager.GetComponentSchema(componentType, componentName, version)
-}
-
-// GetComponentSchemaJSONByName is a convenience function that returns JSON bytes
-func GetComponentSchemaJSONByName(componentType ComponentType, componentName string, version string) ([]byte, error) {
-	manager := NewSchemaManager()
-	return manager.GetComponentSchemaJSON(componentType, componentName, version)
-}
-
-// ListComponents is a convenience function that lists all available components
-func ListComponents(version string) (map[ComponentType][]string, error) {
-	manager := NewSchemaManager()
-	return manager.ListAvailableComponents(version)
 }

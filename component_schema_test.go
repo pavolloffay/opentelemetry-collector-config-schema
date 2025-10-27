@@ -1,8 +1,11 @@
-package main
+package collectorconfigschema
 
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSchemaManager_GetComponentSchema(t *testing.T) {
@@ -155,30 +158,6 @@ func TestSchemaManager_Caching(t *testing.T) {
 	t.Log("Schema caching is working correctly")
 }
 
-func TestConvenienceFunctions(t *testing.T) {
-	// Test convenience function for getting schema
-	schema, err := GetComponentSchemaByName(ComponentTypeExtension, "zpages", "0.138.0")
-	if err != nil {
-		t.Fatalf("Failed to get zpages extension schema using convenience function: %v", err)
-	}
-
-	if schema.Name != "zpages" || schema.Type != ComponentTypeExtension {
-		t.Errorf("Unexpected schema: name=%s, type=%s", schema.Name, schema.Type)
-	}
-
-	// Test convenience function for getting JSON
-	jsonData, err := GetComponentSchemaJSONByName(ComponentTypeExtension, "zpages", "0.138.0")
-	if err != nil {
-		t.Fatalf("Failed to get zpages extension schema JSON using convenience function: %v", err)
-	}
-
-	if len(jsonData) == 0 {
-		t.Fatal("JSON data is empty")
-	}
-
-	t.Logf("Convenience functions work correctly")
-}
-
 func TestSchemaManager_WithVersion(t *testing.T) {
 	manager := NewSchemaManager()
 
@@ -209,6 +188,144 @@ func TestSchemaManager_WithVersion(t *testing.T) {
 	}
 
 	t.Log("Version handling works correctly")
+}
+
+func TestSchemaManager_ValidateComponentJSON(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test valid JSON for OTLP receiver
+	validJSON := []byte(`{
+		"protocols": {
+			"grpc": {
+				"endpoint": "0.0.0.0:4317"
+			},
+			"http": {
+				"endpoint": "0.0.0.0:4318"
+			}
+		}
+	}`)
+
+	result, err := manager.ValidateComponentJSON(ComponentTypeReceiver, "otlp", "0.138.0", validJSON)
+	require.NoError(t, err, "Failed to validate valid OTLP receiver JSON")
+	require.NotNil(t, result, "Validation result should not be nil")
+
+	if !result.Valid() {
+		for _, desc := range result.Errors() {
+			t.Errorf("Validation error: %s", desc)
+		}
+	}
+	assert.True(t, result.Valid(), "Expected valid JSON to pass validation")
+
+	t.Logf("Successfully validated OTLP receiver configuration")
+}
+
+func TestSchemaManager_ValidateComponentJSON_Invalid(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test invalid JSON (include_metadata should be a boolean, not a string)
+	invalidJSON := []byte(`{
+		"grpc": {
+			"include_metadata": "invalid_boolean_value",
+			"keepalive": {
+				"server_parameters": {
+					"max_connection_idle": "invalid_duration_format"
+				}
+			}
+		}
+	}`)
+
+	result, err := manager.ValidateComponentJSON(ComponentTypeReceiver, "otlp", "0.138.0", invalidJSON)
+	require.NoError(t, err, "Failed to validate invalid OTLP receiver JSON")
+	require.NotNil(t, result, "Validation result should not be nil")
+
+	if result.Valid() {
+		assert.Fail(t, "Expected invalid JSON to fail validation, but it passed")
+	} else {
+		t.Logf("Correctly identified %d validation errors:", len(result.Errors()))
+		for _, desc := range result.Errors() {
+			t.Logf("  - %s", desc)
+		}
+		assert.False(t, result.Valid(), "Expected invalid JSON to fail validation")
+	}
+}
+
+func TestSchemaManager_ValidateComponentJSON_MalformedJSON(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test malformed JSON
+	malformedJSON := []byte(`{
+		"protocols": {
+			"grpc": {
+				"endpoint": "0.0.0.0:4317"
+			}
+		// Missing closing braces`)
+
+	result, err := manager.ValidateComponentJSON(ComponentTypeReceiver, "otlp", "0.138.0", malformedJSON)
+	if err != nil {
+		// This should fail at the validation level, not the JSON parsing level
+		t.Logf("Expected error for malformed JSON: %v", err)
+		return
+	}
+
+	if result != nil && result.Valid() {
+		t.Error("Expected malformed JSON to fail validation")
+	}
+}
+
+func TestSchemaManager_ValidateComponentJSON_NonExistentComponent(t *testing.T) {
+	manager := NewSchemaManager()
+
+	validJSON := []byte(`{"some": "config"}`)
+
+	_, err := manager.ValidateComponentJSON(ComponentTypeReceiver, "nonexistent", "0.138.0", validJSON)
+	require.Error(t, err, "Expected error for non-existent component")
+
+	expectedError := "failed to get schema for receiver nonexistent v0.138.0"
+	assert.Contains(t, err.Error(), expectedError, "Error should contain expected text")
+
+	t.Logf("Correctly handled non-existent component: %v", err)
+}
+
+func TestSchemaManager_ValidateComponentJSON_EmptyJSON(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test empty JSON object
+	emptyJSON := []byte(`{}`)
+
+	result, err := manager.ValidateComponentJSON(ComponentTypeReceiver, "otlp", "0.138.0", emptyJSON)
+	require.NoError(t, err, "Failed to validate empty JSON")
+	require.NotNil(t, result, "Validation result should not be nil")
+
+	// Empty JSON might be valid or invalid depending on schema requirements
+	// Just verify we get a result without errors
+	t.Logf("Empty JSON validation result: valid=%v, errors=%d", result.Valid(), len(result.Errors()))
+}
+
+func TestSchemaManager_ValidateComponentJSON_DifferentComponents(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test debug exporter with minimal valid config
+	debugExporterJSON := []byte(`{
+		"verbosity": "normal"
+	}`)
+
+	result, err := manager.ValidateComponentJSON(ComponentTypeExporter, "debug", "0.138.0", debugExporterJSON)
+	require.NoError(t, err, "Failed to validate debug exporter JSON")
+	require.NotNil(t, result, "Validation result should not be nil")
+
+	t.Logf("Debug exporter validation result: valid=%v, errors=%d", result.Valid(), len(result.Errors()))
+
+	// Test batch processor with valid config
+	batchProcessorJSON := []byte(`{
+		"timeout": "1s",
+		"send_batch_size": 1024
+	}`)
+
+	result, err = manager.ValidateComponentJSON(ComponentTypeProcessor, "batch", "0.138.0", batchProcessorJSON)
+	require.NoError(t, err, "Failed to validate batch processor JSON")
+	require.NotNil(t, result, "Validation result should not be nil")
+
+	t.Logf("Batch processor validation result: valid=%v, errors=%d", result.Valid(), len(result.Errors()))
 }
 
 func BenchmarkSchemaManager_GetComponentSchema(b *testing.B) {
