@@ -197,6 +197,14 @@ func (sg *SchemaGenerator) analyzeStructFields(structType reflect.Type, properti
 			continue
 		}
 
+		// Handle embedded/anonymous fields by flattening them
+		if field.Anonymous {
+			if err := sg.handleEmbeddedField(field, properties, required); err != nil {
+				return fmt.Errorf("failed to handle embedded field %s: %w", field.Name, err)
+			}
+			continue
+		}
+
 		// Get field name (use mapstructure tag if available, otherwise field name)
 		fieldName := sg.getFieldName(field)
 		if fieldName == "" || fieldName == "-" {
@@ -217,6 +225,24 @@ func (sg *SchemaGenerator) analyzeStructFields(structType reflect.Type, properti
 	}
 
 	return nil
+}
+
+// handleEmbeddedField handles anonymous/embedded struct fields by flattening their properties
+func (sg *SchemaGenerator) handleEmbeddedField(field reflect.StructField, properties map[string]interface{}, required *[]string) error {
+	fieldType := field.Type
+
+	// Handle pointer to embedded struct
+	if fieldType.Kind() == reflect.Ptr {
+		fieldType = fieldType.Elem()
+	}
+
+	// Only handle embedded structs
+	if fieldType.Kind() != reflect.Struct {
+		return nil
+	}
+
+	// Recursively analyze the embedded struct's fields
+	return sg.analyzeStructFields(fieldType, properties, required)
 }
 
 // getFieldName gets the field name for JSON, preferring mapstructure tag
@@ -253,7 +279,8 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField) (ma
 	} else {
 		// Non-pointer fields are generally required unless they have omitempty
 		tags := field.Tag.Get("mapstructure")
-		if !strings.Contains(tags, "omitempty") {
+		jsonTags := field.Tag.Get("json")
+		if !strings.Contains(tags, "omitempty") && !strings.Contains(jsonTags, "omitempty") {
 			isRequired = true
 		}
 	}
@@ -272,33 +299,64 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField) (ma
 	case reflect.Slice, reflect.Array:
 		property["type"] = "array"
 
-		// Try to determine item type
-		elemType := fieldType.Elem()
-		if elemType.Kind() == reflect.String {
-			property["items"] = map[string]interface{}{"type": "string"}
-		} else if elemType.Kind() == reflect.Int || elemType.Kind() == reflect.Int64 {
-			property["items"] = map[string]interface{}{"type": "integer"}
-		} else {
-			property["items"] = map[string]interface{}{}
+		// Recursively determine item type
+		itemSchema, err := sg.generateTypeSchema(fieldType.Elem())
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to generate array item schema: %w", err)
 		}
+		property["items"] = itemSchema
 	case reflect.Map:
 		property["type"] = "object"
 		property["additionalProperties"] = true
-	case reflect.Struct:
-		// For embedded structs or complex types, just mark as object
-		property["type"] = "object"
 
-		// Special handling for common types
+		// If we can determine the value type, add it
+		if fieldType.Key().Kind() == reflect.String {
+			valueSchema, err := sg.generateTypeSchema(fieldType.Elem())
+			if err == nil && len(valueSchema) > 0 {
+				property["additionalProperties"] = valueSchema
+			}
+		}
+	case reflect.Struct:
+		// Handle special types first
 		typeName := fieldType.Name()
-		switch typeName {
-		case "Duration":
+		pkgPath := fieldType.PkgPath()
+
+		switch {
+		case typeName == "Duration" && strings.Contains(pkgPath, "time"):
 			property["type"] = "string"
 			property["pattern"] = "^[0-9]+(ns|us|µs|ms|s|m|h)$"
 			property["description"] = "Duration string (e.g., '1s', '5m', '1h')"
-		case "Time":
+		case typeName == "Time" && strings.Contains(pkgPath, "time"):
 			property["type"] = "string"
 			property["format"] = "date-time"
+		case strings.HasPrefix(typeName, "Optional") && strings.Contains(pkgPath, "configoptional"):
+			// Handle configoptional.Optional[T] types by unwrapping them
+			if unwrappedSchema, err := sg.unwrapOptionalType(fieldType); err == nil {
+				return unwrappedSchema, false, nil // Optional types are never required
+			}
+			// Fallback to object if unwrapping fails
+			property["type"] = "object"
+		default:
+			// For other structs, recursively analyze their fields
+			property["type"] = "object"
+			nestedProperties := make(map[string]interface{})
+			nestedRequired := []string{}
+
+			if err := sg.analyzeStructFields(fieldType, nestedProperties, &nestedRequired); err != nil {
+				return nil, false, fmt.Errorf("failed to analyze struct fields: %w", err)
+			}
+
+			if len(nestedProperties) > 0 {
+				property["properties"] = nestedProperties
+			}
+			if len(nestedRequired) > 0 {
+				property["required"] = nestedRequired
+			}
 		}
+	case reflect.Interface:
+		// Interface types are typically configuration objects
+		property["type"] = "object"
+		property["additionalProperties"] = true
 	default:
 		property["type"] = "object"
 	}
@@ -308,7 +366,128 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField) (ma
 		property["description"] = desc
 	}
 
+	// Add description from yaml tag if available
+	if desc := field.Tag.Get("yaml"); desc != "" && !strings.Contains(desc, ",") {
+		if property["description"] == nil {
+			property["description"] = desc
+		}
+	}
+
 	return property, isRequired, nil
+}
+
+// generateTypeSchema generates a schema for a specific reflect.Type
+func (sg *SchemaGenerator) generateTypeSchema(t reflect.Type) (map[string]interface{}, error) {
+	schema := make(map[string]interface{})
+
+	// Handle pointers
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	switch t.Kind() {
+	case reflect.String:
+		schema["type"] = "string"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		 reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		schema["type"] = "integer"
+	case reflect.Float32, reflect.Float64:
+		schema["type"] = "number"
+	case reflect.Bool:
+		schema["type"] = "boolean"
+	case reflect.Slice, reflect.Array:
+		schema["type"] = "array"
+		if itemSchema, err := sg.generateTypeSchema(t.Elem()); err == nil {
+			schema["items"] = itemSchema
+		}
+	case reflect.Map:
+		schema["type"] = "object"
+		schema["additionalProperties"] = true
+	case reflect.Struct:
+		typeName := t.Name()
+		pkgPath := t.PkgPath()
+
+		switch {
+		case typeName == "Duration" && strings.Contains(pkgPath, "time"):
+			schema["type"] = "string"
+			schema["pattern"] = "^[0-9]+(ns|us|µs|ms|s|m|h)$"
+		case typeName == "Time" && strings.Contains(pkgPath, "time"):
+			schema["type"] = "string"
+			schema["format"] = "date-time"
+		default:
+			schema["type"] = "object"
+			properties := make(map[string]interface{})
+			required := []string{}
+
+			if err := sg.analyzeStructFields(t, properties, &required); err == nil {
+				if len(properties) > 0 {
+					schema["properties"] = properties
+				}
+				if len(required) > 0 {
+					schema["required"] = required
+				}
+			}
+		}
+	case reflect.Interface:
+		schema["type"] = "object"
+		schema["additionalProperties"] = true
+	default:
+		schema["type"] = "object"
+	}
+
+	return schema, nil
+}
+
+// unwrapOptionalType unwraps configoptional.Optional[T] and similar wrapper types
+func (sg *SchemaGenerator) unwrapOptionalType(optionalType reflect.Type) (map[string]interface{}, error) {
+	// configoptional.Optional[T] has a field named "value" that contains the actual T value
+
+	// Look for the "value" field specifically
+	for i := 0; i < optionalType.NumField(); i++ {
+		field := optionalType.Field(i)
+
+		// Look for the "value" field that contains the wrapped type
+		if field.Name == "value" {
+			fieldType := field.Type
+
+			// Handle pointer to the wrapped type
+			if fieldType.Kind() == reflect.Ptr {
+				fieldType = fieldType.Elem()
+			}
+
+			// Generate schema for the wrapped type
+			return sg.generateTypeSchema(fieldType)
+		}
+	}
+
+	// Also try looking for any exported field that might contain the wrapped type (fallback)
+	for i := 0; i < optionalType.NumField(); i++ {
+		field := optionalType.Field(i)
+
+		// Skip unexported fields and common non-data fields
+		if !field.IsExported() || field.Name == "_" || field.Name == "flavor" {
+			continue
+		}
+
+		// Check if this field contains the wrapped type
+		fieldType := field.Type
+
+		// Handle pointer to the wrapped type
+		if fieldType.Kind() == reflect.Ptr {
+			fieldType = fieldType.Elem()
+		}
+
+		// If this is a struct that looks like configuration, use it
+		if fieldType.Kind() == reflect.Struct && fieldType.NumField() > 0 {
+			// Generate schema for the wrapped type
+			return sg.generateTypeSchema(fieldType)
+		}
+	}
+
+	// If we can't unwrap it, return a generic object schema
+	return map[string]interface{}{
+		"type": "object",
+	}, nil
 }
 
 // writeSchemaToFile writes a JSON schema to a file
