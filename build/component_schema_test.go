@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
+	"time"
+
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/collector/config/configoptional"
+	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/receiver"
 )
 
 // TestSchemaGenerationWithCustomComponent tests the schema generator with our custom test component
@@ -29,176 +35,167 @@ func TestSchemaGenerationWithCustomComponent(t *testing.T) {
 		t.Fatalf("Failed to generate JSON schema: %v", err)
 	}
 
-	// Load expected schema
+	// Write generated schema to file
+	generatedBytes, err := json.MarshalIndent(generatedSchema, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal generated schema: %v", err)
+	}
+
+	generatedFile := filepath.Join("test_output", "actual_generated_schema.json")
+	if err := os.MkdirAll("test_output", 0755); err != nil {
+		t.Fatalf("Failed to create test_output directory: %v", err)
+	}
+
+	if err := os.WriteFile(generatedFile, generatedBytes, 0644); err != nil {
+		t.Fatalf("Failed to write generated schema: %v", err)
+	}
+
+	// Read expected schema file
 	expectedSchemaPath := filepath.Join("testdata", "expected_testcomponent_schema.json")
-	expectedSchemaBytes, err := os.ReadFile(expectedSchemaPath)
+	expectedBytes, err := os.ReadFile(expectedSchemaPath)
 	if err != nil {
 		t.Fatalf("Failed to read expected schema file: %v", err)
 	}
 
-	var expectedSchema map[string]interface{}
-	if err := json.Unmarshal(expectedSchemaBytes, &expectedSchema); err != nil {
-		t.Fatalf("Failed to unmarshal expected schema: %v", err)
-	}
-
-	// Write generated schema to file for inspection
-	generatedBytes, _ := json.MarshalIndent(generatedSchema, "", "  ")
-	generatedFile := filepath.Join("test_output", "actual_generated_schema.json")
-	if err := os.MkdirAll("test_output", 0755); err == nil {
-		_ = os.WriteFile(generatedFile, generatedBytes, 0644)
-		t.Logf("Generated schema written to: %s", generatedFile)
-	}
-
-	// Compare generated schema with expected schema
-	if !compareSchemas(t, expectedSchema, generatedSchema) {
-		t.Error("Generated schema does not match expected schema")
-	}
-}
-
-// compareSchemas recursively compares two schema maps
-func compareSchemas(t *testing.T, expected, actual map[string]interface{}) bool {
-	for key, expectedValue := range expected {
-		actualValue, exists := actual[key]
-		if !exists {
-			t.Errorf("Missing key in generated schema: %s", key)
-			return false
-		}
-
-		if !compareValues(t, key, expectedValue, actualValue) {
-			return false
-		}
-	}
-
-	// Check for unexpected keys in actual schema
-	for key := range actual {
-		if _, exists := expected[key]; !exists {
-			t.Logf("Extra key in generated schema: %s", key)
-			// We allow extra keys as the generator might include additional metadata
-		}
-	}
-
-	return true
-}
-
-// compareValues compares two values recursively
-func compareValues(t *testing.T, path string, expected, actual interface{}) bool {
-	// Handle special case for arrays - []interface{} vs []string
-	if expectedSlice, ok := expected.([]interface{}); ok {
-		if actualStringSlice, ok := actual.([]string); ok {
-			// Convert []string to []interface{} for comparison
-			actualSlice := make([]interface{}, len(actualStringSlice))
-			for i, s := range actualStringSlice {
-				actualSlice[i] = s
-			}
-			return compareSlices(t, path, expectedSlice, actualSlice)
-		}
-		if actualSlice, ok := actual.([]interface{}); ok {
-			return compareSlices(t, path, expectedSlice, actualSlice)
-		}
-		t.Errorf("Expected slice at %s, got %T", path, actual)
-		return false
-	}
-
-	if actualSlice, ok := actual.([]string); ok {
-		if expectedSlice, ok := expected.([]interface{}); ok {
-			// Convert []string to []interface{} for comparison
-			actualInterfaceSlice := make([]interface{}, len(actualSlice))
-			for i, s := range actualSlice {
-				actualInterfaceSlice[i] = s
-			}
-			return compareSlices(t, path, expectedSlice, actualInterfaceSlice)
-		}
-	}
-
-	expectedType := reflect.TypeOf(expected)
-	actualType := reflect.TypeOf(actual)
-
-	if expectedType != actualType {
-		t.Errorf("Type mismatch at %s: expected %T, got %T", path, expected, actual)
-		return false
-	}
-
-	switch expectedValue := expected.(type) {
-	case map[string]interface{}:
-		actualMap, ok := actual.(map[string]interface{})
-		if !ok {
-			t.Errorf("Expected map at %s, got %T", path, actual)
-			return false
-		}
-		return compareSchemas(t, expectedValue, actualMap)
-
-	case []interface{}:
-		actualSlice, ok := actual.([]interface{})
-		if !ok {
-			t.Errorf("Expected slice at %s, got %T", path, actual)
-			return false
-		}
-		return compareSlices(t, path, expectedValue, actualSlice)
-
-	default:
-		if expected != actual {
-			t.Errorf("Value mismatch at %s: expected %v, got %v", path, expected, actual)
-			return false
-		}
-		return true
-	}
-}
-
-// compareSlices compares two slices of interfaces
-func compareSlices(t *testing.T, path string, expected, actual []interface{}) bool {
-	if len(expected) != len(actual) {
-		t.Errorf("Slice length mismatch at %s: expected %d, got %d", path, len(expected), len(actual))
-		return false
-	}
-
-	for i, expectedItem := range expected {
-		if !compareValues(t, fmt.Sprintf("%s[%d]", path, i), expectedItem, actual[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-
-// TestOptionalFieldHandling specifically tests configoptional.Optional field handling
-func TestOptionalFieldHandling(t *testing.T) {
-	// Create a simple config with Optional field for isolated testing
-	factory := NewFactory()
-	defaultConfig := factory.CreateDefaultConfig()
-
-	generator := NewSchemaGenerator("test_optional")
-	defer func() {
-		_ = os.RemoveAll("test_optional")
-	}()
-
-	schema, err := generator.generateJSONSchema(defaultConfig)
+	// Read generated schema file
+	actualBytes, err := os.ReadFile(generatedFile)
 	if err != nil {
-		t.Fatalf("Failed to generate schema: %v", err)
+		t.Fatalf("Failed to read generated schema file: %v", err)
 	}
 
-	properties := schema["properties"].(map[string]interface{})
+	// Compare as strings
+	expectedStr := string(expectedBytes)
+	actualStr := string(actualBytes)
 
-	// Test that Optional[confighttp.ServerConfig] is unwrapped
-	httpServer, exists := properties["http_server"]
-	if !exists {
-		t.Fatal("http_server field missing")
+	if expectedStr != actualStr {
+		t.Errorf("Generated schema does not match expected schema.\nExpected file: %s\nActual file: %s", expectedSchemaPath, generatedFile)
 	}
+}
 
-	httpServerObj, ok := httpServer.(map[string]interface{})
-	if !ok {
-		t.Fatalf("http_server should be object, got: %T", httpServer)
+// TestComponentType is the type identifier for our test component
+var TestComponentType = component.MustNewType("testcomponent")
+
+// DatabaseConfig represents database connection configuration
+type DatabaseConfig struct {
+	Host     string        `mapstructure:"host"`
+	Port     int           `mapstructure:"port"`
+	Username string        `mapstructure:"username"`
+	Password string        `mapstructure:"password"`
+	Timeout  time.Duration `mapstructure:"timeout"`
+}
+
+// TestReceiverConfig defines the configuration for our test receiver
+type TestReceiverConfig struct {
+	// Required nested struct
+	Database DatabaseConfig `mapstructure:"database"`
+
+	// Optional field using configoptional
+	HTTPServer configoptional.Optional[confighttp.ServerConfig] `mapstructure:"http_server"`
+
+	// Simple types
+	CollectionInterval time.Duration `mapstructure:"collection_interval"`
+	BatchSize          int           `mapstructure:"batch_size"`
+	EnableTracing      bool          `mapstructure:"enable_tracing"`
+	LogLevel           string        `mapstructure:"log_level,omitempty"`
+
+	// Array type
+	IncludeTables []string `mapstructure:"include_tables,omitempty"`
+
+	// Map type
+	TableAliases map[string]string `mapstructure:"table_aliases,omitempty"`
+
+	// Embedded anonymous struct
+	component.Config `mapstructure:",squash"`
+}
+
+// TestReceiver is our test receiver implementation
+type TestReceiver struct {
+	config   *TestReceiverConfig
+	settings receiver.Settings
+}
+
+// CreateDefaultConfig creates the default configuration
+func CreateDefaultConfig() component.Config {
+	return &TestReceiverConfig{
+		Database: DatabaseConfig{
+			Host:     "localhost",
+			Port:     5432,
+			Username: "testuser",
+			Password: "",
+			Timeout:  30 * time.Second,
+		},
+		HTTPServer:         configoptional.Optional[confighttp.ServerConfig]{},
+		CollectionInterval: 30 * time.Second,
+		BatchSize:          100,
+		EnableTracing:      true,
+		LogLevel:           "info",
+		IncludeTables:      []string{"users", "orders", "products"},
+		TableAliases: map[string]string{
+			"u": "users",
+			"o": "orders",
+		},
 	}
+}
 
-	// Should have nested properties from ServerConfig
-	httpProps, exists := httpServerObj["properties"].(map[string]interface{})
-	if !exists {
-		t.Fatal("http_server should have properties from unwrapped ServerConfig")
-	}
+// createTracesReceiver creates a trace receiver
+func createTracesReceiver(
+	ctx context.Context,
+	settings receiver.Settings,
+	cfg component.Config,
+	nextConsumer consumer.Traces,
+) (receiver.Traces, error) {
+	config := cfg.(*TestReceiverConfig)
+	return &TestReceiver{
+		config:   config,
+		settings: settings,
+	}, nil
+}
 
-	// Check for some expected ServerConfig fields
-	if _, exists := httpProps["endpoint"]; !exists {
-		t.Error("Missing endpoint field from unwrapped ServerConfig")
-	}
+// createMetricsReceiver creates a metrics receiver
+func createMetricsReceiver(
+	ctx context.Context,
+	settings receiver.Settings,
+	cfg component.Config,
+	nextConsumer consumer.Metrics,
+) (receiver.Metrics, error) {
+	config := cfg.(*TestReceiverConfig)
+	return &TestReceiver{
+		config:   config,
+		settings: settings,
+	}, nil
+}
 
-	t.Logf("Successfully unwrapped configoptional.Optional[confighttp.ServerConfig] with %d properties", len(httpProps))
+// createLogsReceiver creates a logs receiver
+func createLogsReceiver(
+	ctx context.Context,
+	settings receiver.Settings,
+	cfg component.Config,
+	nextConsumer consumer.Logs,
+) (receiver.Logs, error) {
+	config := cfg.(*TestReceiverConfig)
+	return &TestReceiver{
+		config:   config,
+		settings: settings,
+	}, nil
+}
+
+// Start starts the receiver
+func (r *TestReceiver) Start(ctx context.Context, host component.Host) error {
+	return nil
+}
+
+// Shutdown stops the receiver
+func (r *TestReceiver) Shutdown(ctx context.Context) error {
+	return nil
+}
+
+// NewFactory creates a new test receiver factory
+func NewFactory() receiver.Factory {
+	return receiver.NewFactory(
+		TestComponentType,
+		CreateDefaultConfig,
+		receiver.WithTraces(createTracesReceiver, component.StabilityLevelDevelopment),
+		receiver.WithMetrics(createMetricsReceiver, component.StabilityLevelDevelopment),
+		receiver.WithLogs(createLogsReceiver, component.StabilityLevelDevelopment),
+	)
 }
