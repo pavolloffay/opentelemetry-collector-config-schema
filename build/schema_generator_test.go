@@ -13,7 +13,11 @@ import (
 
 // TestGenerateAllSchemas tests the schema generator by generating JSON schemas for all components
 func TestGenerateAllSchemas(t *testing.T) {
-	schemaOutputDir := "test-schemas"
+	// Get output directory from environment variable, fallback to default
+	schemaOutputDir := os.Getenv("SCHEMA_OUTPUT_DIR")
+	if schemaOutputDir == "" {
+		schemaOutputDir = "test-schemas"
+	}
 
 	// Create schema generator
 	generator := NewSchemaGenerator(schemaOutputDir)

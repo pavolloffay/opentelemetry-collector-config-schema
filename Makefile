@@ -16,7 +16,7 @@ SCHEMA_OUTPUT_DIR ?= ../schemas/$(OCB_VERSION)
 .PHONY: generate-schemas
 generate-schemas: build-collector
 	@echo "Generating JSON schemas for all OpenTelemetry collector components..."
-	cd build && SCHEMA_OUTPUT_DIR=$(SCHEMA_OUTPUT_DIR) go test -run TestGenerateAllSchemas -v
+	cd build && go mod vendor && SCHEMA_OUTPUT_DIR=$(SCHEMA_OUTPUT_DIR) go test -run TestGenerateAllSchemas -v
 
 .PHONY: clean-schemas
 clean-schemas:

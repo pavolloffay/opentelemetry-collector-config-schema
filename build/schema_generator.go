@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,23 +17,24 @@ import (
 	"go.opentelemetry.io/collector/connector"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/extension"
+	"go.opentelemetry.io/collector/otelcol"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/receiver"
 )
 
 // SchemaGenerator generates JSON schemas for OpenTelemetry collector component configurations
 type SchemaGenerator struct {
-	outputDir     string
-	commentCache  map[string]map[string]string // packagePath -> typeName.fieldName -> comment
-	fileSetCache  map[string]*token.FileSet    // packagePath -> FileSet
+	outputDir    string
+	commentCache map[string]map[string]string // packagePath -> typeName.fieldName -> comment
+	fileSetCache map[string]*token.FileSet    // packagePath -> FileSet
 }
 
 // NewSchemaGenerator creates a new schema generator that outputs to the specified directory
 func NewSchemaGenerator(outputDir string) *SchemaGenerator {
 	return &SchemaGenerator{
-		outputDir:     outputDir,
-		commentCache:  make(map[string]map[string]string),
-		fileSetCache:  make(map[string]*token.FileSet),
+		outputDir:    outputDir,
+		commentCache: make(map[string]map[string]string),
+		fileSetCache: make(map[string]*token.FileSet),
 	}
 }
 
@@ -68,6 +70,11 @@ func (sg *SchemaGenerator) GenerateAllSchemas() error {
 
 	if err := sg.generateConnectorSchemas(factories.Connectors); err != nil {
 		return fmt.Errorf("failed to generate connector schemas: %w", err)
+	}
+
+	// Copy README files for all components
+	if err := sg.copyAllReadmeFiles(&factories); err != nil {
+		return fmt.Errorf("failed to copy README files: %w", err)
 	}
 
 	return nil
@@ -154,10 +161,10 @@ func (sg *SchemaGenerator) generateSchemaForComponent(componentCategory string, 
 
 	// Create filename for this component
 	filename := fmt.Sprintf("%s_%s.json", componentCategory, componentType)
-	filepath := filepath.Join(sg.outputDir, filename)
+	filePath := filepath.Join(sg.outputDir, filename)
 
 	// Write schema to file
-	if err := sg.writeSchemaToFile(filepath, schema); err != nil {
+	if err := sg.writeSchemaToFile(filePath, schema); err != nil {
 		return fmt.Errorf("failed to write schema to file: %w", err)
 	}
 
@@ -293,7 +300,7 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, par
 	case reflect.String:
 		property["type"] = "string"
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		 reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		property["type"] = "integer"
 	case reflect.Float32, reflect.Float64:
 		property["type"] = "number"
@@ -404,7 +411,7 @@ func (sg *SchemaGenerator) generateTypeSchema(t reflect.Type) (map[string]interf
 	case reflect.String:
 		schema["type"] = "string"
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		 reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		schema["type"] = "integer"
 	case reflect.Float32, reflect.Float64:
 		schema["type"] = "number"
@@ -667,7 +674,7 @@ func (sg *SchemaGenerator) cleanComment(comment string) string {
 }
 
 // writeSchemaToFile writes a JSON schema to a file
-func (sg *SchemaGenerator) writeSchemaToFile(filepath string, schema map[string]interface{}) error {
+func (sg *SchemaGenerator) writeSchemaToFile(filePath string, schema map[string]interface{}) error {
 	// Pretty print JSON
 	data, err := json.MarshalIndent(schema, "", "  ")
 	if err != nil {
@@ -675,9 +682,108 @@ func (sg *SchemaGenerator) writeSchemaToFile(filepath string, schema map[string]
 	}
 
 	// Write to file
-	if err := os.WriteFile(filepath, data, 0644); err != nil {
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
 	return nil
+}
+
+// copyAllReadmeFiles copies README files for all components
+func (sg *SchemaGenerator) copyAllReadmeFiles(factories *otelcol.Factories) error {
+	// Use build/vendor directory (current working directory should be build/)
+	vendorDir := "vendor"
+
+	// Check if vendor directory exists
+	if _, err := os.Stat(vendorDir); os.IsNotExist(err) {
+		fmt.Printf("Warning: vendor directory %s not found, skipping README copy\n", vendorDir)
+		return nil
+	}
+
+	fmt.Println("Copying README files for all components...")
+
+	// Copy README files for each component type
+	componentTypes := []struct {
+		name    string
+		modules map[component.Type]string
+	}{
+		{"extension", factories.ExtensionModules},
+		{"receiver", factories.ReceiverModules},
+		{"processor", factories.ProcessorModules},
+		{"exporter", factories.ExporterModules},
+		{"connector", factories.ConnectorModules},
+	}
+
+	for _, compType := range componentTypes {
+		if err := sg.copyReadmeFilesForComponentType(compType.name, compType.modules); err != nil {
+			return fmt.Errorf("failed to copy %s README files: %w", compType.name, err)
+		}
+	}
+
+	fmt.Println("Successfully copied all README files!")
+	return nil
+}
+
+// copyReadmeFilesForComponentType copies README files for a specific component type
+func (sg *SchemaGenerator) copyReadmeFilesForComponentType(componentCategory string, modules map[component.Type]string) error {
+	for componentType, modulePath := range modules {
+		if err := sg.copyReadmeForComponent(componentCategory, componentType, modulePath); err != nil {
+			fmt.Printf("Warning: failed to copy README for %s %s: %v\n", componentCategory, componentType, err)
+			continue
+		}
+	}
+	return nil
+}
+
+// copyReadmeForComponent copies README file for a specific component
+func (sg *SchemaGenerator) copyReadmeForComponent(componentCategory string, componentType component.Type, modulePath string) error {
+	// Parse module path to extract package path
+	// Format: "github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension v0.138.0"
+	parts := strings.Fields(modulePath)
+	if len(parts) == 0 {
+		return fmt.Errorf("invalid module path: %s", modulePath)
+	}
+
+	packagePath := parts[0]
+
+	// Find the README file in build/vendor directory
+	readmePath := filepath.Join("vendor", packagePath, "README.md")
+	if _, err := os.Stat(readmePath); os.IsNotExist(err) {
+		return fmt.Errorf("README.md not found at %s", readmePath)
+	}
+
+	// Create destination filename matching schema naming convention
+	destFilename := fmt.Sprintf("%s_%s.md", componentCategory, componentType)
+	destPath := filepath.Join(sg.outputDir, destFilename)
+
+	// Copy the README file
+	if err := sg.copyFile(readmePath, destPath); err != nil {
+		return fmt.Errorf("failed to copy file from %s to %s: %w", readmePath, destPath, err)
+	}
+
+	fmt.Printf("Copied README for %s %s -> %s\n", componentCategory, componentType, destFilename)
+	return nil
+}
+
+// copyFile copies a file from src to dst
+func (sg *SchemaGenerator) copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	// Sync to ensure the file is written to disk
+	return destFile.Sync()
 }
