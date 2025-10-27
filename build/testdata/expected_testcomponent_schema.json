@@ -1,60 +1,47 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "title": "TestReceiverConfig Configuration",
   "properties": {
+    "batch_size": {
+      "type": "integer"
+    },
+    "collection_interval": {
+      "description": "Duration string (e.g., '1s', '5m', '1h')",
+      "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
+      "type": "string"
+    },
     "database": {
-      "type": "object",
       "properties": {
         "host": {
-          "type": "string"
-        },
-        "port": {
-          "type": "integer"
-        },
-        "database": {
-          "type": "string"
-        },
-        "username": {
           "type": "string"
         },
         "password": {
           "type": "string"
         },
-        "timeout": {
-          "type": "string",
-          "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-          "description": "Duration string (e.g., '1s', '5m', '1h')"
-        },
-        "max_connections": {
+        "port": {
           "type": "integer"
         },
-        "enable_ssl": {
-          "type": "boolean"
-        },
-        "ssl_mode": {
+        "timeout": {
+          "description": "Duration string (e.g., '1s', '5m', '1h')",
+          "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
           "type": "string"
         },
-        "connection_params": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+        "username": {
+          "type": "string"
         }
       },
       "required": [
         "host",
         "port",
-        "database",
         "username",
         "password",
-        "timeout",
-        "max_connections",
-        "enable_ssl"
-      ]
+        "timeout"
+      ],
+      "type": "object"
+    },
+    "enable_tracing": {
+      "type": "boolean"
     },
     "http_server": {
-      "type": "object",
       "properties": {
         "auth": {
           "properties": {
@@ -100,9 +87,9 @@
           "type": "string"
         },
         "idle_timeout": {
-          "type": "string",
+          "description": "Duration string (e.g., '1s', '5m', '1h')",
           "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-          "description": "Duration string (e.g., '1s', '5m', '1h')"
+          "type": "string"
         },
         "include_metadata": {
           "type": "boolean"
@@ -125,14 +112,14 @@
           "type": "array"
         },
         "read_header_timeout": {
-          "type": "string",
+          "description": "Duration string (e.g., '1s', '5m', '1h')",
           "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-          "description": "Duration string (e.g., '1s', '5m', '1h')"
+          "type": "string"
         },
         "read_timeout": {
-          "type": "string",
+          "description": "Duration string (e.g., '1s', '5m', '1h')",
           "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-          "description": "Duration string (e.g., '1s', '5m', '1h')"
+          "type": "string"
         },
         "response_headers": {
           "additionalProperties": {
@@ -188,9 +175,9 @@
               "type": "string"
             },
             "reload_interval": {
-              "type": "string",
+              "description": "Duration string (e.g., '1s', '5m', '1h')",
               "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-              "description": "Duration string (e.g., '1s', '5m', '1h')"
+              "type": "string"
             },
             "tpm": {
               "properties": {
@@ -219,9 +206,9 @@
           "type": "object"
         },
         "write_timeout": {
-          "type": "string",
+          "description": "Duration string (e.g., '1s', '5m', '1h')",
           "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-          "description": "Duration string (e.g., '1s', '5m', '1h')"
+          "type": "string"
         }
       },
       "required": [
@@ -229,413 +216,31 @@
         "read_header_timeout",
         "write_timeout",
         "idle_timeout"
-      ]
+      ],
+      "type": "object"
     },
-    "grpc_server": {
-      "type": "object",
-      "properties": {
-        "auth": {
-          "properties": {
-            "authenticator": {
-              "type": "object"
-            }
-          },
-          "type": "object"
-        },
-        "include_metadata": {
-          "type": "boolean"
-        },
-        "keepalive": {
-          "properties": {
-            "enforcement_policy": {
-              "properties": {
-                "min_time": {
-                  "type": "string",
-                  "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-                  "description": "Duration string (e.g., '1s', '5m', '1h')"
-                },
-                "permit_without_stream": {
-                  "type": "boolean"
-                }
-              },
-              "type": "object"
-            },
-            "server_parameters": {
-              "properties": {
-                "max_connection_age": {
-                  "type": "string",
-                  "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-                  "description": "Duration string (e.g., '1s', '5m', '1h')"
-                },
-                "max_connection_age_grace": {
-                  "type": "string",
-                  "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-                  "description": "Duration string (e.g., '1s', '5m', '1h')"
-                },
-                "max_connection_idle": {
-                  "type": "string",
-                  "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-                  "description": "Duration string (e.g., '1s', '5m', '1h')"
-                },
-                "time": {
-                  "type": "string",
-                  "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-                  "description": "Duration string (e.g., '1s', '5m', '1h')"
-                },
-                "timeout": {
-                  "type": "string",
-                  "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-                  "description": "Duration string (e.g., '1s', '5m', '1h')"
-                }
-              },
-              "type": "object"
-            }
-          },
-          "type": "object"
-        },
-        "max_concurrent_streams": {
-          "type": "integer"
-        },
-        "max_recv_msg_size_mib": {
-          "type": "integer"
-        },
-        "middlewares": {
-          "items": {
-            "properties": {
-              "id": {
-                "type": "object"
-              }
-            },
-            "type": "object"
-          },
-          "type": "array"
-        },
-        "netaddr": {
-          "properties": {
-            "dialer": {
-              "properties": {
-                "timeout": {
-                  "type": "string",
-                  "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-                  "description": "Duration string (e.g., '1s', '5m', '1h')"
-                }
-              },
-              "type": "object"
-            },
-            "endpoint": {
-              "type": "string"
-            },
-            "transport": {
-              "type": "string"
-            }
-          },
-          "type": "object"
-        },
-        "read_buffer_size": {
-          "type": "integer"
-        },
-        "tls": {
-          "properties": {
-            "ca_file": {
-              "type": "string"
-            },
-            "ca_pem": {
-              "type": "string"
-            },
-            "cert_file": {
-              "type": "string"
-            },
-            "cert_pem": {
-              "type": "string"
-            },
-            "cipher_suites": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "client_ca_file": {
-              "type": "string"
-            },
-            "client_ca_file_reload": {
-              "type": "boolean"
-            },
-            "curve_preferences": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "include_system_ca_certs_pool": {
-              "type": "boolean"
-            },
-            "key_file": {
-              "type": "string"
-            },
-            "key_pem": {
-              "type": "string"
-            },
-            "max_version": {
-              "type": "string"
-            },
-            "min_version": {
-              "type": "string"
-            },
-            "reload_interval": {
-              "type": "string",
-              "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-              "description": "Duration string (e.g., '1s', '5m', '1h')"
-            },
-            "tpm": {
-              "properties": {
-                "auth": {
-                  "type": "string"
-                },
-                "enabled": {
-                  "type": "boolean"
-                },
-                "owner_auth": {
-                  "type": "string"
-                },
-                "path": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "enabled",
-                "path",
-                "owner_auth",
-                "auth"
-              ],
-              "type": "object"
-            }
-          },
-          "type": "object"
-        },
-        "write_buffer_size": {
-          "type": "integer"
-        }
+    "include_tables": {
+      "items": {
+        "type": "string"
       },
-      "required": [
-        "netaddr"
-      ]
-    },
-    "tls": {
-      "type": "object",
-      "properties": {
-        "ca_file": {
-          "type": "string"
-        },
-        "ca_pem": {
-          "type": "string"
-        },
-        "cert_file": {
-          "type": "string"
-        },
-        "cert_pem": {
-          "type": "string"
-        },
-        "cipher_suites": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "client_ca_file": {
-          "type": "string"
-        },
-        "client_ca_file_reload": {
-          "type": "boolean"
-        },
-        "curve_preferences": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "include_system_ca_certs_pool": {
-          "type": "boolean"
-        },
-        "key_file": {
-          "type": "string"
-        },
-        "key_pem": {
-          "type": "string"
-        },
-        "max_version": {
-          "type": "string"
-        },
-        "min_version": {
-          "type": "string"
-        },
-        "reload_interval": {
-          "type": "string",
-          "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-          "description": "Duration string (e.g., '1s', '5m', '1h')"
-        },
-        "tpm": {
-          "properties": {
-            "auth": {
-              "type": "string"
-            },
-            "enabled": {
-              "type": "boolean"
-            },
-            "owner_auth": {
-              "type": "string"
-            },
-            "path": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "enabled",
-            "path",
-            "owner_auth",
-            "auth"
-          ],
-          "type": "object"
-        }
-      }
-    },
-    "retry": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "max_attempts": {
-          "type": "integer"
-        },
-        "initial_delay": {
-          "type": "string",
-          "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-          "description": "Duration string (e.g., '1s', '5m', '1h')"
-        },
-        "max_delay": {
-          "type": "string",
-          "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-          "description": "Duration string (e.g., '1s', '5m', '1h')"
-        },
-        "multiplier": {
-          "type": "number"
-        },
-        "jitter": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "enabled",
-        "max_attempts",
-        "initial_delay",
-        "max_delay",
-        "multiplier"
-      ]
-    },
-    "metrics": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "collection_interval": {
-          "type": "string",
-          "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-          "description": "Duration string (e.g., '1s', '5m', '1h')"
-        },
-        "metric_names": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "labels": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "custom_queries": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "query": {
-                "type": "string"
-              },
-              "parameters": {
-                "type": "object",
-                "additionalProperties": true
-              },
-              "timeout": {
-                "type": "string",
-                "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-                "description": "Duration string (e.g., '1s', '5m', '1h')"
-              },
-              "metric_type": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "name",
-              "query",
-              "metric_type"
-            ]
-          }
-        }
-      },
-      "required": [
-        "enabled",
-        "collection_interval",
-        "metric_names"
-      ]
-    },
-    "collection_interval": {
-      "type": "string",
-      "pattern": "^[0-9]+(ns|us|µs|ms|s|m|h)$",
-      "description": "Duration string (e.g., '1s', '5m', '1h')"
-    },
-    "batch_size": {
-      "type": "integer"
-    },
-    "enable_tracing": {
-      "type": "boolean"
+      "type": "array"
     },
     "log_level": {
       "type": "string"
     },
-    "include_tables": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "exclude_tables": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
     "table_aliases": {
-      "type": "object",
       "additionalProperties": {
         "type": "string"
-      }
-    },
-    "custom_attributes": {
-      "type": "object",
-      "additionalProperties": true
+      },
+      "type": "object"
     }
   },
   "required": [
     "database",
-    "retry",
-    "metrics",
     "collection_interval",
     "batch_size",
     "enable_tracing"
-  ]
+  ],
+  "title": "TestReceiverConfig Configuration",
+  "type": "object"
 }
