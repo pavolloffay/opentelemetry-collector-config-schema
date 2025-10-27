@@ -112,6 +112,22 @@ func (sm *SchemaManager) ValidateComponentJSON(componentType ComponentType, comp
 	return result, nil
 }
 
+// GetComponentReadme returns the README content for a specific component
+func (sm *SchemaManager) GetComponentReadme(componentType ComponentType, componentName string, version string) (string, error) {
+	// Construct filename (format: type_name.md)
+	filename := fmt.Sprintf("%s_%s.md", componentType, componentName)
+
+	// Load from embedded filesystem
+	schemaPath := fmt.Sprintf("schemas/v%s", version)
+	embeddedFilepath := filepath.Join(schemaPath, filename)
+	data, err := fs.ReadFile(embeddedSchemas, embeddedFilepath)
+	if err != nil {
+		return "", fmt.Errorf("README not found for component %s %s v%s", componentType, componentName, version)
+	}
+
+	return string(data), nil
+}
+
 // listEmbeddedComponents lists components from embedded filesystem
 func (sm *SchemaManager) listEmbeddedComponents(version string) (map[ComponentType][]string, error) {
 	components := make(map[ComponentType][]string)
