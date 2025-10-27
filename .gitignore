@@ -3,3 +3,5 @@
 build/otelcol-contrib
 
 build/schemas/
+
+build/test_output/

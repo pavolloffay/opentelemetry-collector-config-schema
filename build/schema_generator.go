@@ -285,6 +285,18 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField) (ma
 		}
 	}
 
+	// Check for special types first, before basic type handling
+	typeName := fieldType.Name()
+	pkgPath := fieldType.PkgPath()
+
+	// Handle time.Duration specially (it's an int64 but should be treated as a string)
+	if typeName == "Duration" && strings.Contains(pkgPath, "time") {
+		property["type"] = "string"
+		property["pattern"] = "^[0-9]+(ns|us|µs|ms|s|m|h)$"
+		property["description"] = "Duration string (e.g., '1s', '5m', '1h')"
+		return property, isRequired, nil
+	}
+
 	// Set type and other properties based on Go type
 	switch fieldType.Kind() {
 	case reflect.String:
@@ -322,10 +334,6 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField) (ma
 		pkgPath := fieldType.PkgPath()
 
 		switch {
-		case typeName == "Duration" && strings.Contains(pkgPath, "time"):
-			property["type"] = "string"
-			property["pattern"] = "^[0-9]+(ns|us|µs|ms|s|m|h)$"
-			property["description"] = "Duration string (e.g., '1s', '5m', '1h')"
 		case typeName == "Time" && strings.Contains(pkgPath, "time"):
 			property["type"] = "string"
 			property["format"] = "date-time"
@@ -385,6 +393,18 @@ func (sg *SchemaGenerator) generateTypeSchema(t reflect.Type) (map[string]interf
 		t = t.Elem()
 	}
 
+	// Check for special types first (like time.Duration which is an int64)
+	typeName := t.Name()
+	pkgPath := t.PkgPath()
+
+	// Handle time.Duration specially
+	if typeName == "Duration" && strings.Contains(pkgPath, "time") {
+		schema["type"] = "string"
+		schema["pattern"] = "^[0-9]+(ns|us|µs|ms|s|m|h)$"
+		schema["description"] = "Duration string (e.g., '1s', '5m', '1h')"
+		return schema, nil
+	}
+
 	switch t.Kind() {
 	case reflect.String:
 		schema["type"] = "string"
@@ -408,9 +428,6 @@ func (sg *SchemaGenerator) generateTypeSchema(t reflect.Type) (map[string]interf
 		pkgPath := t.PkgPath()
 
 		switch {
-		case typeName == "Duration" && strings.Contains(pkgPath, "time"):
-			schema["type"] = "string"
-			schema["pattern"] = "^[0-9]+(ns|us|µs|ms|s|m|h)$"
 		case typeName == "Time" && strings.Contains(pkgPath, "time"):
 			schema["type"] = "string"
 			schema["format"] = "date-time"
