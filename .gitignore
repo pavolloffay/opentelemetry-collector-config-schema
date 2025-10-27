@@ -1,7 +1,6 @@
 .bin/
 
 build/otelcol-contrib
-
-build/schemas/
+build/test-schemas
 build/test_output/
 build/vendor

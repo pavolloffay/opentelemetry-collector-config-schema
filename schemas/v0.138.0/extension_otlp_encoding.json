@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "protocol": {
+      "type": "string"
+    }
+  },
+  "title": "Config Configuration",
+  "type": "object"
+}

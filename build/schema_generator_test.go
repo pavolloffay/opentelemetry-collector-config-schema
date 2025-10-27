@@ -7,14 +7,14 @@ import (
 	"testing"
 
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/collector/receiver"
 )
-
-const schemaOutputDir = "schemas"
 
 // TestGenerateAllSchemas tests the schema generator by generating JSON schemas for all components
 func TestGenerateAllSchemas(t *testing.T) {
+	schemaOutputDir := "test-schemas"
+
 	// Create schema generator
 	generator := NewSchemaGenerator(schemaOutputDir)
 
@@ -24,7 +24,7 @@ func TestGenerateAllSchemas(t *testing.T) {
 	}
 
 	// Verify that schemas were created
-	if err := verifyGeneratedSchemas(t); err != nil {
+	if err := verifyGeneratedSchemas(t, schemaOutputDir); err != nil {
 		t.Fatalf("Schema verification failed: %v", err)
 	}
 
@@ -32,7 +32,7 @@ func TestGenerateAllSchemas(t *testing.T) {
 }
 
 // verifyGeneratedSchemas verifies that schema files were created and are valid
-func verifyGeneratedSchemas(t *testing.T) error {
+func verifyGeneratedSchemas(t *testing.T, schemaOutputDir string) error {
 	// Check if schema directory exists
 	if _, err := os.Stat(schemaOutputDir); os.IsNotExist(err) {
 		return fmt.Errorf("schema directory %s does not exist", schemaOutputDir)
