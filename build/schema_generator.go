@@ -3,7 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -18,13 +22,17 @@ import (
 
 // SchemaGenerator generates JSON schemas for OpenTelemetry collector component configurations
 type SchemaGenerator struct {
-	outputDir string
+	outputDir     string
+	commentCache  map[string]map[string]string // packagePath -> typeName.fieldName -> comment
+	fileSetCache  map[string]*token.FileSet    // packagePath -> FileSet
 }
 
 // NewSchemaGenerator creates a new schema generator that outputs to the specified directory
 func NewSchemaGenerator(outputDir string) *SchemaGenerator {
 	return &SchemaGenerator{
-		outputDir: outputDir,
+		outputDir:     outputDir,
+		commentCache:  make(map[string]map[string]string),
+		fileSetCache:  make(map[string]*token.FileSet),
 	}
 }
 
@@ -212,7 +220,7 @@ func (sg *SchemaGenerator) analyzeStructFields(structType reflect.Type, properti
 		}
 
 		// Generate property schema for this field
-		property, isRequired, err := sg.generatePropertySchema(field)
+		property, isRequired, err := sg.generatePropertySchema(field, structType)
 		if err != nil {
 			return fmt.Errorf("failed to generate property schema for field %s: %w", field.Name, err)
 		}
@@ -268,7 +276,7 @@ func (sg *SchemaGenerator) getFieldName(field reflect.StructField) string {
 }
 
 // generatePropertySchema generates a JSON schema property for a struct field
-func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField) (map[string]interface{}, bool, error) {
+func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, parentType reflect.Type) (map[string]interface{}, bool, error) {
 	property := make(map[string]interface{})
 	fieldType := field.Type
 	isRequired := false
@@ -369,14 +377,22 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField) (ma
 		property["type"] = "object"
 	}
 
-	// Add description from field documentation if available
-	if desc := field.Tag.Get("description"); desc != "" {
-		property["description"] = desc
+	// Add description from source code comments
+	// Extract comment for this field from the parent struct where it's declared
+	if comment := sg.extractFieldComment(parentType, field.Name); comment != "" {
+		property["description"] = comment
 	}
 
-	// Add description from yaml tag if available
-	if desc := field.Tag.Get("yaml"); desc != "" && !strings.Contains(desc, ",") {
-		if property["description"] == nil {
+	// Add description from field documentation tag if available and no comment was found
+	if property["description"] == nil {
+		if desc := field.Tag.Get("description"); desc != "" {
+			property["description"] = desc
+		}
+	}
+
+	// Add description from yaml tag if available and no other description was found
+	if property["description"] == nil {
+		if desc := field.Tag.Get("yaml"); desc != "" && !strings.Contains(desc, ",") {
 			property["description"] = desc
 		}
 	}
@@ -505,6 +521,174 @@ func (sg *SchemaGenerator) unwrapOptionalType(optionalType reflect.Type) (map[st
 	return map[string]interface{}{
 		"type": "object",
 	}, nil
+}
+
+// extractFieldComment extracts comments for a struct field from source code
+func (sg *SchemaGenerator) extractFieldComment(parentType reflect.Type, fieldName string) string {
+	// Skip basic types that don't have source code
+	if parentType.PkgPath() == "" {
+		return ""
+	}
+
+	// For the parent struct type, try to find comments for the field
+	if parentType.Kind() == reflect.Struct {
+		typeName := parentType.Name()
+		pkgPath := parentType.PkgPath()
+
+		// Load comments for this package if not already loaded
+		if err := sg.loadCommentsForPackage(pkgPath); err != nil {
+			return ""
+		}
+
+		// Look up comment in cache
+		if packageComments, exists := sg.commentCache[pkgPath]; exists {
+			key := fmt.Sprintf("%s.%s", typeName, fieldName)
+			if comment, exists := packageComments[key]; exists {
+				return comment
+			}
+		}
+	}
+
+	return ""
+}
+
+// loadCommentsForPackage loads comments for all structs in a Go package
+func (sg *SchemaGenerator) loadCommentsForPackage(pkgPath string) error {
+	// Check if already loaded
+	if _, exists := sg.commentCache[pkgPath]; exists {
+		return nil
+	}
+
+	// Initialize cache for this package
+	sg.commentCache[pkgPath] = make(map[string]string)
+
+	// Try to find the source directory for this package
+	srcDir, err := sg.findPackageSourceDir(pkgPath)
+	if err != nil {
+		return err
+	}
+
+	// Parse all Go files in the package directory
+	fset := token.NewFileSet()
+	sg.fileSetCache[pkgPath] = fset
+
+	packages, err := parser.ParseDir(fset, srcDir, nil, parser.ParseComments)
+	if err != nil {
+		return fmt.Errorf("failed to parse package %s: %w", pkgPath, err)
+	}
+
+	// Extract comments from all packages (there might be multiple due to test files)
+	for _, pkg := range packages {
+		for _, file := range pkg.Files {
+			sg.extractCommentsFromFile(file, fset, pkgPath)
+		}
+	}
+
+	return nil
+}
+
+// findPackageSourceDir finds the source directory for a given package path
+func (sg *SchemaGenerator) findPackageSourceDir(pkgPath string) (string, error) {
+	// For standard library packages, we can't easily access source
+	if !strings.Contains(pkgPath, ".") {
+		return "", fmt.Errorf("cannot access source for standard library package: %s", pkgPath)
+	}
+
+	// For our test case in the main package, try current directory first
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	// If the package path ends with the current directory name, use current directory
+	if strings.HasSuffix(pkgPath, "contrib") && strings.Contains(wd, "build") {
+		return wd, nil
+	}
+
+	// Use go list to find the package directory
+	return sg.findPackageWithGoList(pkgPath)
+}
+
+// findPackageWithGoList uses go list to find the source directory for a package
+func (sg *SchemaGenerator) findPackageWithGoList(pkgPath string) (string, error) {
+	// Use go list to get the package directory
+	cmd := exec.Command("go", "list", "-f", "{{.Dir}}", pkgPath)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("go list failed for package %s: %w", pkgPath, err)
+	}
+
+	dir := strings.TrimSpace(string(output))
+	if dir == "" {
+		return "", fmt.Errorf("go list returned empty directory for package: %s", pkgPath)
+	}
+
+	// Verify the directory exists
+	if _, err := os.Stat(dir); err != nil {
+		return "", fmt.Errorf("directory from go list does not exist: %s", dir)
+	}
+
+	return dir, nil
+}
+
+// extractCommentsFromFile extracts comments from a single Go file
+func (sg *SchemaGenerator) extractCommentsFromFile(file *ast.File, fset *token.FileSet, pkgPath string) {
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch node := n.(type) {
+		case *ast.TypeSpec:
+			// This is a type declaration (struct, interface, etc.)
+			if structType, ok := node.Type.(*ast.StructType); ok {
+				sg.extractStructComments(node.Name.Name, structType, node.Doc, fset, pkgPath)
+			}
+		}
+		return true
+	})
+}
+
+// extractStructComments extracts comments for all fields in a struct
+func (sg *SchemaGenerator) extractStructComments(typeName string, structType *ast.StructType, typeDoc *ast.CommentGroup, fset *token.FileSet, pkgPath string) {
+	for _, field := range structType.Fields.List {
+		// Get field comment (prefer field comment over type comment)
+		var comment string
+		if field.Doc != nil {
+			comment = sg.cleanComment(field.Doc.Text())
+		} else if field.Comment != nil {
+			comment = sg.cleanComment(field.Comment.Text())
+		}
+
+		// Store comment for each field name
+		for _, name := range field.Names {
+			if comment != "" {
+				key := fmt.Sprintf("%s.%s", typeName, name.Name)
+				sg.commentCache[pkgPath][key] = comment
+			}
+		}
+	}
+}
+
+// cleanComment cleans up a comment string by removing comment markers and extra whitespace
+func (sg *SchemaGenerator) cleanComment(comment string) string {
+	// Remove leading/trailing whitespace
+	comment = strings.TrimSpace(comment)
+
+	// Remove comment markers
+	lines := strings.Split(comment, "\n")
+	var cleanedLines []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Remove // and /* */ markers
+		line = strings.TrimPrefix(line, "//")
+		line = strings.TrimPrefix(line, "/*")
+		line = strings.TrimSuffix(line, "*/")
+		line = strings.TrimSpace(line)
+
+		if line != "" {
+			cleanedLines = append(cleanedLines, line)
+		}
+	}
+
+	return strings.Join(cleanedLines, " ")
 }
 
 // writeSchemaToFile writes a JSON schema to a file

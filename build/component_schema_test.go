@@ -77,34 +77,42 @@ var TestComponentType = component.MustNewType("testcomponent")
 
 // DatabaseConfig represents database connection configuration
 type DatabaseConfig struct {
-	Host     string        `mapstructure:"host"`
-	Port     int           `mapstructure:"port"`
-	Username string        `mapstructure:"username"`
-	Password string        `mapstructure:"password"`
-	Timeout  time.Duration `mapstructure:"timeout"`
+	// Host is the database server hostname or IP address
+	Host string `mapstructure:"host"`
+	// Port is the database server port number
+	Port int `mapstructure:"port"`
+	// Username for database authentication
+	Username string `mapstructure:"username"`
+	// Password for database authentication (will be encrypted)
+	Password string `mapstructure:"password"`
+	// Timeout for database connection attempts
+	Timeout time.Duration `mapstructure:"timeout"`
 }
 
 // TestReceiverConfig defines the configuration for our test receiver
 type TestReceiverConfig struct {
-	// Required nested struct
+	// Database contains the database connection configuration
 	Database DatabaseConfig `mapstructure:"database"`
 
-	// Optional field using configoptional
+	// HTTPServer configuration for optional HTTP endpoint (uses configoptional wrapper)
 	HTTPServer configoptional.Optional[confighttp.ServerConfig] `mapstructure:"http_server"`
 
-	// Simple types
+	// CollectionInterval defines how often to collect metrics from the database
 	CollectionInterval time.Duration `mapstructure:"collection_interval"`
-	BatchSize          int           `mapstructure:"batch_size"`
-	EnableTracing      bool          `mapstructure:"enable_tracing"`
-	LogLevel           string        `mapstructure:"log_level,omitempty"`
+	// BatchSize controls how many records to process in each batch
+	BatchSize int `mapstructure:"batch_size"`
+	// EnableTracing enables distributed tracing for this receiver
+	EnableTracing bool `mapstructure:"enable_tracing"`
+	// LogLevel sets the logging verbosity (debug, info, warn, error)
+	LogLevel string `mapstructure:"log_level,omitempty"`
 
-	// Array type
+	// IncludeTables lists specific database tables to monitor
 	IncludeTables []string `mapstructure:"include_tables,omitempty"`
 
-	// Map type
+	// TableAliases maps short names to full table names for convenience
 	TableAliases map[string]string `mapstructure:"table_aliases,omitempty"`
 
-	// Embedded anonymous struct
+	// Embedded standard component configuration
 	component.Config `mapstructure:",squash"`
 }
 

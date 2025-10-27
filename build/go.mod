@@ -233,6 +233,8 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zipkinreceiver v0.138.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zookeeperreceiver v0.138.0
 	go.opentelemetry.io/collector/component v1.44.0
+	go.opentelemetry.io/collector/config/confighttp v0.138.0
+	go.opentelemetry.io/collector/config/configoptional v1.44.0
 	go.opentelemetry.io/collector/confmap v1.44.0
 	go.opentelemetry.io/collector/confmap/provider/envprovider v1.44.0
 	go.opentelemetry.io/collector/confmap/provider/fileprovider v1.44.0
@@ -241,6 +243,7 @@ require (
 	go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.44.0
 	go.opentelemetry.io/collector/connector v0.138.0
 	go.opentelemetry.io/collector/connector/forwardconnector v0.138.0
+	go.opentelemetry.io/collector/consumer v1.44.0
 	go.opentelemetry.io/collector/exporter v1.44.0
 	go.opentelemetry.io/collector/exporter/debugexporter v0.138.0
 	go.opentelemetry.io/collector/exporter/nopexporter v0.138.0
@@ -898,18 +901,15 @@ require (
 	go.opentelemetry.io/collector/config/configauth v1.44.0 // indirect
 	go.opentelemetry.io/collector/config/configcompression v1.44.0 // indirect
 	go.opentelemetry.io/collector/config/configgrpc v0.138.0 // indirect
-	go.opentelemetry.io/collector/config/confighttp v0.138.0 // indirect
 	go.opentelemetry.io/collector/config/configmiddleware v1.44.0 // indirect
 	go.opentelemetry.io/collector/config/confignet v1.44.0 // indirect
 	go.opentelemetry.io/collector/config/configopaque v1.44.0 // indirect
-	go.opentelemetry.io/collector/config/configoptional v1.44.0 // indirect
 	go.opentelemetry.io/collector/config/configretry v1.44.0 // indirect
 	go.opentelemetry.io/collector/config/configtelemetry v0.138.0 // indirect
 	go.opentelemetry.io/collector/config/configtls v1.44.0 // indirect
 	go.opentelemetry.io/collector/confmap/xconfmap v0.138.0 // indirect
 	go.opentelemetry.io/collector/connector/connectortest v0.138.0 // indirect
 	go.opentelemetry.io/collector/connector/xconnector v0.138.0 // indirect
-	go.opentelemetry.io/collector/consumer v1.44.0 // indirect
 	go.opentelemetry.io/collector/consumer/consumererror v0.138.0 // indirect
 	go.opentelemetry.io/collector/consumer/consumererror/xconsumererror v0.138.0 // indirect
 	go.opentelemetry.io/collector/consumer/consumertest v0.138.0 // indirect
