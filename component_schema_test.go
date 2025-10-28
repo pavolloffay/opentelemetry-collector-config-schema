@@ -368,8 +368,12 @@ func TestSchemaManager_GetDeprecatedFields(t *testing.T) {
 	foundFields := make(map[string]bool)
 
 	for _, field := range deprecatedFields {
+		// Verify each deprecated field has the required information
+		assert.NotEmpty(t, field.Name, "Deprecated field should have a name")
+		// Description and Type can be empty, but should be present as fields
+
 		for _, expected := range expectedDeprecatedFields {
-			if strings.Contains(field, expected) {
+			if strings.Contains(field.Name, expected) {
 				foundFields[expected] = true
 			}
 		}
@@ -378,7 +382,11 @@ func TestSchemaManager_GetDeprecatedFields(t *testing.T) {
 	// Assert that we found at least one of the expected deprecated fields
 	assert.True(t, len(foundFields) > 0, "Should find at least one expected deprecated field (brokers or topic)")
 
-	t.Logf("Found %d deprecated fields in kafka exporter: %v", len(deprecatedFields), deprecatedFields)
+	// Log detailed information about deprecated fields
+	t.Logf("Found %d deprecated fields in kafka exporter:", len(deprecatedFields))
+	for _, field := range deprecatedFields {
+		t.Logf("  - Name: %s, Type: %s, Description: %s", field.Name, field.Type, field.Description)
+	}
 
 	// Test with a component that doesn't exist
 	_, err = manager.GetDeprecatedFields(ComponentTypeExporter, "nonexistent", "0.138.0")
