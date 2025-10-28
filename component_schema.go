@@ -124,7 +124,7 @@ func (sm *SchemaManager) GetComponentReadme(componentType ComponentType, compone
 	filename := fmt.Sprintf("%s_%s.md", componentType, componentName)
 
 	// Load from embedded filesystem
-	schemaPath := fmt.Sprintf("schemas/v%s", version)
+	schemaPath := fmt.Sprintf("schemas/%s", version)
 	embeddedFilepath := filepath.Join(schemaPath, filename)
 	data, err := fs.ReadFile(embeddedSchemas, embeddedFilepath)
 	if err != nil {
@@ -139,7 +139,7 @@ func (sm *SchemaManager) listEmbeddedComponents(version string) (map[ComponentTy
 	components := make(map[ComponentType][]string)
 
 	// Read embedded directory
-	schemaPath := fmt.Sprintf("schemas/v%s", version)
+	schemaPath := fmt.Sprintf("schemas/%s", version)
 	entries, err := fs.ReadDir(embeddedSchemas, schemaPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read embedded schema directory: %w", err)
@@ -179,7 +179,7 @@ func (sm *SchemaManager) loadSchemaFromFile(componentType ComponentType, compone
 	filename := fmt.Sprintf("%s_%s.json", componentType, componentName)
 
 	// Load from embedded filesystem
-	schemaPath := fmt.Sprintf("schemas/v%s", version)
+	schemaPath := fmt.Sprintf("schemas/%s", version)
 	embeddedFilepath := filepath.Join(schemaPath, filename)
 	data, err := fs.ReadFile(embeddedSchemas, embeddedFilepath)
 	if err != nil {
@@ -222,11 +222,13 @@ func (sm *SchemaManager) GetLatestVersion() (string, error) {
 
 	var latestVersion string
 	for _, entry := range entries {
-		if entry.IsDir() && strings.HasPrefix(entry.Name(), "v") {
-			// Extract version without the "v" prefix
-			version := strings.TrimPrefix(entry.Name(), "v")
-			if latestVersion == "" || version > latestVersion {
-				latestVersion = version
+		if entry.IsDir() {
+			// Check if the directory name looks like a version (contains dots)
+			version := entry.Name()
+			if strings.Contains(version, ".") {
+				if latestVersion == "" || version > latestVersion {
+					latestVersion = version
+				}
 			}
 		}
 	}
@@ -247,10 +249,12 @@ func (sm *SchemaManager) GetAllVersions() ([]string, error) {
 
 	var versions []string
 	for _, entry := range entries {
-		if entry.IsDir() && strings.HasPrefix(entry.Name(), "v") {
-			// Extract version without the "v" prefix
-			version := strings.TrimPrefix(entry.Name(), "v")
-			versions = append(versions, version)
+		if entry.IsDir() {
+			// Check if the directory name looks like a version (contains dots)
+			version := entry.Name()
+			if strings.Contains(version, ".") {
+				versions = append(versions, version)
+			}
 		}
 	}
 
@@ -269,7 +273,7 @@ func (sm *SchemaManager) GetComponentNames(componentType ComponentType, version 
 	}
 
 	// Read embedded directory for the specific version
-	schemaPath := fmt.Sprintf("schemas/v%s", version)
+	schemaPath := fmt.Sprintf("schemas/%s", version)
 	entries, err := fs.ReadDir(embeddedSchemas, schemaPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read schema directory for version %s: %w", version, err)
