@@ -253,3 +253,43 @@ func (sm *SchemaManager) GetAllVersions() ([]string, error) {
 
 	return versions, nil
 }
+
+// GetComponentNames returns all component names for a given version and component type
+func (sm *SchemaManager) GetComponentNames(componentType ComponentType, version string) ([]string, error) {
+	// Validate component type
+	if !isValidComponentType(componentType) {
+		return nil, fmt.Errorf("invalid component type: %s", componentType)
+	}
+
+	// Read embedded directory for the specific version
+	schemaPath := fmt.Sprintf("schemas/v%s", version)
+	entries, err := fs.ReadDir(embeddedSchemas, schemaPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read schema directory for version %s: %w", version, err)
+	}
+
+	var componentNames []string
+	prefix := string(componentType) + "_"
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+
+		// Check if the file matches the component type pattern (e.g., "receiver_otlp.json")
+		if strings.HasPrefix(entry.Name(), prefix) {
+			// Extract component name by removing prefix and .json suffix
+			name := strings.TrimSuffix(entry.Name(), ".json")
+			componentName := strings.TrimPrefix(name, prefix)
+			if componentName != "" {
+				componentNames = append(componentNames, componentName)
+			}
+		}
+	}
+
+	if len(componentNames) == 0 {
+		return nil, fmt.Errorf("no %s components found for version %s", componentType, version)
+	}
+
+	return componentNames, nil
+}

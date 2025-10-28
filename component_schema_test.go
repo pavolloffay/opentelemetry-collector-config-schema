@@ -352,6 +352,73 @@ func TestSchemaManager_GetAllVersions(t *testing.T) {
 	t.Logf("All versions found: %v", versions)
 }
 
+func TestSchemaManager_GetComponentNames(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test getting receiver component names
+	receiverNames, err := manager.GetComponentNames(ComponentTypeReceiver, "0.138.0")
+	require.NoError(t, err, "Failed to get receiver component names")
+	require.NotEmpty(t, receiverNames, "Receiver names list should not be empty")
+
+	// Verify we have expected receivers
+	assert.Contains(t, receiverNames, "otlp", "Expected otlp receiver to be in the list")
+	assert.GreaterOrEqual(t, len(receiverNames), 10, "Should have at least 10 receivers")
+
+	t.Logf("Found %d receiver components: %v", len(receiverNames), receiverNames[:minInt(5, len(receiverNames))])
+
+	// Test getting processor component names
+	processorNames, err := manager.GetComponentNames(ComponentTypeProcessor, "0.138.0")
+	require.NoError(t, err, "Failed to get processor component names")
+	require.NotEmpty(t, processorNames, "Processor names list should not be empty")
+
+	// Verify we have expected processors
+	assert.Contains(t, processorNames, "batch", "Expected batch processor to be in the list")
+	assert.GreaterOrEqual(t, len(processorNames), 5, "Should have at least 5 processors")
+
+	t.Logf("Found %d processor components: %v", len(processorNames), processorNames[:minInt(5, len(processorNames))])
+
+	// Test getting exporter component names
+	exporterNames, err := manager.GetComponentNames(ComponentTypeExporter, "0.138.0")
+	require.NoError(t, err, "Failed to get exporter component names")
+	require.NotEmpty(t, exporterNames, "Exporter names list should not be empty")
+
+	// Verify we have expected exporters
+	assert.Contains(t, exporterNames, "debug", "Expected debug exporter to be in the list")
+	assert.GreaterOrEqual(t, len(exporterNames), 5, "Should have at least 5 exporters")
+
+	t.Logf("Found %d exporter components: %v", len(exporterNames), exporterNames[:minInt(5, len(exporterNames))])
+}
+
+func TestSchemaManager_GetComponentNames_InvalidType(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test with invalid component type
+	_, err := manager.GetComponentNames("invalid", "0.138.0")
+	require.Error(t, err, "Expected error for invalid component type")
+	assert.Contains(t, err.Error(), "invalid component type", "Error should mention invalid component type")
+
+	t.Logf("Correctly handled invalid component type: %v", err)
+}
+
+func TestSchemaManager_GetComponentNames_InvalidVersion(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test with non-existent version
+	_, err := manager.GetComponentNames(ComponentTypeReceiver, "999.999.999")
+	require.Error(t, err, "Expected error for non-existent version")
+	assert.Contains(t, err.Error(), "failed to read schema directory", "Error should mention directory read failure")
+
+	t.Logf("Correctly handled non-existent version: %v", err)
+}
+
+// Helper function for minimum value
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func BenchmarkSchemaManager_GetComponentSchema(b *testing.B) {
 	manager := NewSchemaManager()
 
