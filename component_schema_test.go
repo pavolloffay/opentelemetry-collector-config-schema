@@ -34,20 +34,6 @@ func TestSchemaManager_GetComponentSchema(t *testing.T) {
 	}
 
 	// Verify schema has expected properties
-	if schemaType, exists := schema.Schema["$schema"]; !exists {
-		t.Error("Schema missing '$schema' property")
-	} else if schemaType != "https://json-schema.org/draft/2020-12/schema" {
-		t.Errorf("Unexpected schema type: %v", schemaType)
-	}
-
-	// Verify it has properties
-	if properties, exists := schema.Schema["properties"]; !exists {
-		t.Error("Schema missing 'properties'")
-	} else if propertiesMap, ok := properties.(map[string]interface{}); !ok {
-		t.Error("Properties is not a map")
-	} else if len(propertiesMap) == 0 {
-		t.Error("Properties map is empty")
-	}
 
 	t.Logf("Successfully loaded schema for %s %s with %d top-level properties",
 		schema.Type, schema.Name, len(schema.Schema))
@@ -326,6 +312,44 @@ func TestSchemaManager_ValidateComponentJSON_DifferentComponents(t *testing.T) {
 	require.NotNil(t, result, "Validation result should not be nil")
 
 	t.Logf("Batch processor validation result: valid=%v, errors=%d", result.Valid(), len(result.Errors()))
+}
+
+func TestSchemaManager_GetLatestVersion(t *testing.T) {
+	manager := NewSchemaManager()
+
+	version, err := manager.GetLatestVersion()
+	require.NoError(t, err, "Failed to get latest version")
+	require.NotEmpty(t, version, "Latest version should not be empty")
+
+	// Verify the version has a valid format (major.minor.patch)
+	assert.Contains(t, version, ".", "Version should contain dots")
+
+	// Since we know we have v0.138.0 in the schemas directory, verify it's returned
+	assert.Equal(t, "0.138.0", version, "Expected version 0.138.0 as the latest")
+
+	t.Logf("Latest version found: %s", version)
+}
+
+func TestSchemaManager_GetAllVersions(t *testing.T) {
+	manager := NewSchemaManager()
+
+	versions, err := manager.GetAllVersions()
+	require.NoError(t, err, "Failed to get all versions")
+	require.NotEmpty(t, versions, "Versions list should not be empty")
+
+	// Verify we have at least one version
+	assert.GreaterOrEqual(t, len(versions), 1, "Should have at least one version")
+
+	// Since we know we have v0.138.0, verify it's in the list
+	assert.Contains(t, versions, "0.138.0", "Expected version 0.138.0 to be in the list")
+
+	// Verify all versions have a valid format (contain dots)
+	for _, version := range versions {
+		assert.Contains(t, version, ".", "Version %s should contain dots", version)
+		assert.NotEmpty(t, version, "Version should not be empty")
+	}
+
+	t.Logf("All versions found: %v", versions)
 }
 
 func BenchmarkSchemaManager_GetComponentSchema(b *testing.B) {

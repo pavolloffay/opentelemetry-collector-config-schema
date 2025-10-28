@@ -43,6 +43,7 @@ help:
 	@echo "  generate-schemas            - Generate JSON schemas using go test"
 	@echo "                                Override output dir with: make SCHEMA_OUTPUT_DIR=my-schemas generate-schemas"
 	@echo "  generate-schemas-standalone - Generate JSON schemas using standalone tool"
+	@echo "  test                        - Run tests in all packages"
 	@echo "  clean-schemas               - Remove generated schema files"
 	@echo "  clean                       - Remove build artifacts and local binaries"
 	@echo "  help                        - Show this help message"

@@ -205,3 +205,51 @@ func isValidComponentType(componentType ComponentType) bool {
 		return false
 	}
 }
+
+// GetLatestVersion returns the latest version available in the schemas directory
+func (sm *SchemaManager) GetLatestVersion() (string, error) {
+	entries, err := fs.ReadDir(embeddedSchemas, "schemas")
+	if err != nil {
+		return "", fmt.Errorf("failed to read schemas directory: %w", err)
+	}
+
+	var latestVersion string
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), "v") {
+			// Extract version without the "v" prefix
+			version := strings.TrimPrefix(entry.Name(), "v")
+			if latestVersion == "" || version > latestVersion {
+				latestVersion = version
+			}
+		}
+	}
+
+	if latestVersion == "" {
+		return "", fmt.Errorf("no versions found in schemas directory")
+	}
+
+	return latestVersion, nil
+}
+
+// GetAllVersions returns all versions available in the schemas directory
+func (sm *SchemaManager) GetAllVersions() ([]string, error) {
+	entries, err := fs.ReadDir(embeddedSchemas, "schemas")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read schemas directory: %w", err)
+	}
+
+	var versions []string
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), "v") {
+			// Extract version without the "v" prefix
+			version := strings.TrimPrefix(entry.Name(), "v")
+			versions = append(versions, version)
+		}
+	}
+
+	if len(versions) == 0 {
+		return nil, fmt.Errorf("no versions found in schemas directory")
+	}
+
+	return versions, nil
+}
