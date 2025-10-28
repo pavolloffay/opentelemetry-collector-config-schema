@@ -116,6 +116,5 @@
       "type": "object"
     }
   },
-  "title": "WindowsLogConfig Configuration",
   "type": "object"
 }

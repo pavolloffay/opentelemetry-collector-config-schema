@@ -82,6 +82,5 @@
       "type": "object"
     }
   },
-  "title": "Config Configuration",
   "type": "object"
 }

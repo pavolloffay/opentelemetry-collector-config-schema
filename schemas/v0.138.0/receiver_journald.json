@@ -116,6 +116,5 @@
       "type": "object"
     }
   },
-  "title": "JournaldConfig Configuration",
   "type": "object"
 }

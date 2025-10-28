@@ -254,6 +254,5 @@
       "type": "object"
     }
   },
-  "title": "TestReceiverConfig Configuration",
   "type": "object"
 }

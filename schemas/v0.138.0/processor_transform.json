@@ -117,6 +117,5 @@
       "type": "array"
     }
   },
-  "title": "Config Configuration",
   "type": "object"
 }

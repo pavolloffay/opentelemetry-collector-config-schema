@@ -214,6 +214,5 @@
       "type": "integer"
     }
   },
-  "title": "Config Configuration",
   "type": "object"
 }

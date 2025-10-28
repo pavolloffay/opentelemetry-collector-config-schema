@@ -191,6 +191,5 @@
       "type": "object"
     }
   },
-  "title": "TCPLogConfig Configuration",
   "type": "object"
 }

@@ -115,6 +115,5 @@
       "type": "object"
     }
   },
-  "title": "UDPLogConfig Configuration",
   "type": "object"
 }

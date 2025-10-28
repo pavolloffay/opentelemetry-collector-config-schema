@@ -141,6 +141,5 @@
       "type": "string"
     }
   },
-  "title": "Config Configuration",
   "type": "object"
 }

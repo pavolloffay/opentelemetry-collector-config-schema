@@ -183,7 +183,6 @@ func (sg *SchemaGenerator) generateJSONSchema(config component.Config) (map[stri
 	schema := map[string]interface{}{
 		"$schema":    "https://json-schema.org/draft/2020-12/schema",
 		"type":       "object",
-		"title":      fmt.Sprintf("%s Configuration", configType.Name()),
 		"properties": make(map[string]interface{}),
 	}
 

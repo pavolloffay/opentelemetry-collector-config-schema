@@ -106,6 +106,5 @@
       "type": "boolean"
     }
   },
-  "title": "Config Configuration",
   "type": "object"
 }

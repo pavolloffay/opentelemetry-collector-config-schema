@@ -225,6 +225,5 @@
       "type": "object"
     }
   },
-  "title": "FileLogConfig Configuration",
   "type": "object"
 }

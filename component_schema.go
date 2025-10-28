@@ -27,11 +27,10 @@ const (
 
 // ComponentSchema represents a JSON schema for an OpenTelemetry component
 type ComponentSchema struct {
-	Name        string                 `json:"name"`
-	Type        ComponentType          `json:"type"`
-	Version     string                 `json:"version,omitempty"`
-	Schema      map[string]interface{} `json:"schema"`
-	Description string                 `json:"description,omitempty"`
+	Name    string                 `json:"name"`
+	Type    ComponentType          `json:"type"`
+	Version string                 `json:"version,omitempty"`
+	Schema  map[string]interface{} `json:"schema"`
 }
 
 // SchemaManager manages component schemas
@@ -186,23 +185,14 @@ func (sm *SchemaManager) loadSchemaFromFile(componentType ComponentType, compone
 		return nil, fmt.Errorf("failed to parse schema JSON for %s %s: %w", componentType, componentName, err)
 	}
 
-	// Extract description from schema if available
-	description := ""
-	if title, exists := schemaData["title"]; exists {
-		if titleStr, ok := title.(string); ok {
-			description = titleStr
-		}
-	}
-
 	// Use the provided version
 	componentVersion := version
 
 	return &ComponentSchema{
-		Name:        componentName,
-		Type:        componentType,
-		Version:     componentVersion,
-		Schema:      schemaData,
-		Description: description,
+		Name:    componentName,
+		Type:    componentType,
+		Version: componentVersion,
+		Schema:  schemaData,
 	}, nil
 }
 

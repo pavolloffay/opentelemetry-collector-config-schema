@@ -101,6 +101,5 @@
       "type": "object"
     }
   },
-  "title": "NamedPipeConfig Configuration",
   "type": "object"
 }

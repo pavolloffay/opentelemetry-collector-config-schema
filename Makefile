@@ -22,6 +22,13 @@ generate-schemas: build-collector
 clean-schemas:
 	rm -rf build/$(SCHEMA_OUTPUT_DIR)
 
+.PHONY: test
+test:
+	@echo "Running tests in root package..."
+	go test ./...
+	@echo "Running tests in build package..."
+	cd build && go test ./...
+
 .PHONY: clean
 clean: clean-schemas
 	rm -rf _build .bin build/schema-generator

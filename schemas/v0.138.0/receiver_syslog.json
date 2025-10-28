@@ -273,6 +273,5 @@
       "type": "object"
     }
   },
-  "title": "SysLogConfig Configuration",
   "type": "object"
 }
