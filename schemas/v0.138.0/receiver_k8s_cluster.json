@@ -415,6 +415,7 @@
       "type": "object"
     },
     "namespace": {
+      "deprecated": true,
       "description": "Deprecated: This field is no longer supported, use cfg.Namespaces instead.",
       "type": "string"
     },

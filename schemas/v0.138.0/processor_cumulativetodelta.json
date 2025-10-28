@@ -35,6 +35,7 @@
       "type": "object"
     },
     "include": {
+      "deprecated": true,
       "description": "Include specifies a filter on the metrics that should be converted. Exclude specifies a filter on the metrics that should not be converted. If neither `include` nor `exclude` are set, all metrics will be converted. Cannot be used with deprecated Metrics config option.",
       "properties": {
         "match_type": {

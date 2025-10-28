@@ -2,6 +2,7 @@ package collectorconfigschema
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -350,6 +351,41 @@ func TestSchemaManager_GetAllVersions(t *testing.T) {
 	}
 
 	t.Logf("All versions found: %v", versions)
+}
+
+func TestSchemaManager_GetDeprecatedFields(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test getting deprecated fields for kafka exporter which has known deprecated fields
+	deprecatedFields, err := manager.GetDeprecatedFields(ComponentTypeExporter, "kafka", "0.138.0")
+	require.NoError(t, err, "Failed to get deprecated fields for kafka exporter")
+
+	// Assert that we found deprecated fields in kafka exporter
+	assert.GreaterOrEqual(t, len(deprecatedFields), 1, "Kafka exporter should have at least one deprecated field")
+
+	// Check for specific deprecated fields we expect in kafka exporter
+	expectedDeprecatedFields := []string{"brokers", "topic"}
+	foundFields := make(map[string]bool)
+
+	for _, field := range deprecatedFields {
+		for _, expected := range expectedDeprecatedFields {
+			if strings.Contains(field, expected) {
+				foundFields[expected] = true
+			}
+		}
+	}
+
+	// Assert that we found at least one of the expected deprecated fields
+	assert.True(t, len(foundFields) > 0, "Should find at least one expected deprecated field (brokers or topic)")
+
+	t.Logf("Found %d deprecated fields in kafka exporter: %v", len(deprecatedFields), deprecatedFields)
+
+	// Test with a component that doesn't exist
+	_, err = manager.GetDeprecatedFields(ComponentTypeExporter, "nonexistent", "0.138.0")
+	require.Error(t, err, "Expected error for non-existent component")
+	assert.Contains(t, err.Error(), "failed to get schema", "Error should mention schema retrieval failure")
+
+	t.Logf("Successfully tested deprecated fields detection")
 }
 
 func TestSchemaManager_GetComponentNames(t *testing.T) {

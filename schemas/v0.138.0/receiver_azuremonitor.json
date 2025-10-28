@@ -38,6 +38,7 @@
       "type": "string"
     },
     "credentials": {
+      "deprecated": true,
       "description": "Deprecated: Credentials is deprecated.",
       "type": "string"
     },

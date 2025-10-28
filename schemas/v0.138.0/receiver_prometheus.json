@@ -304,10 +304,12 @@
                         "type": "object"
                       },
                       "bearer_token": {
+                        "deprecated": true,
                         "description": "The bearer token for the targets. Deprecated in favour of Authorization.Credentials.",
                         "type": "string"
                       },
                       "bearer_token_file": {
+                        "deprecated": true,
                         "description": "The bearer token file for the targets. Deprecated in favour of Authorization.CredentialsFile.",
                         "type": "string"
                       },
@@ -938,10 +940,12 @@
                     "type": "object"
                   },
                   "bearer_token": {
+                    "deprecated": true,
                     "description": "The bearer token for the targets. Deprecated in favour of Authorization.Credentials.",
                     "type": "string"
                   },
                   "bearer_token_file": {
+                    "deprecated": true,
                     "description": "The bearer token file for the targets. Deprecated in favour of Authorization.CredentialsFile.",
                     "type": "string"
                   },
@@ -1429,10 +1433,12 @@
                     "type": "object"
                   },
                   "bearer_token": {
+                    "deprecated": true,
                     "description": "The bearer token for the targets. Deprecated in favour of Authorization.Credentials.",
                     "type": "string"
                   },
                   "bearer_token_file": {
+                    "deprecated": true,
                     "description": "The bearer token file for the targets. Deprecated in favour of Authorization.CredentialsFile.",
                     "type": "string"
                   },
@@ -2027,10 +2033,12 @@
                     "type": "object"
                   },
                   "bearer_token": {
+                    "deprecated": true,
                     "description": "The bearer token for the targets. Deprecated in favour of Authorization.Credentials.",
                     "type": "string"
                   },
                   "bearer_token_file": {
+                    "deprecated": true,
                     "description": "The bearer token file for the targets. Deprecated in favour of Authorization.CredentialsFile.",
                     "type": "string"
                   },
@@ -3125,10 +3133,12 @@
                   "type": "object"
                 },
                 "bearer_token": {
+                  "deprecated": true,
                   "description": "The bearer token for the targets. Deprecated in favour of Authorization.Credentials.",
                   "type": "string"
                 },
                 "bearer_token_file": {
+                  "deprecated": true,
                   "description": "The bearer token file for the targets. Deprecated in favour of Authorization.CredentialsFile.",
                   "type": "string"
                 },

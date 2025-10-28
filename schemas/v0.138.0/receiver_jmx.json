@@ -89,6 +89,7 @@
       "type": "object"
     },
     "target_source": {
+      "deprecated": true,
       "description": "The target source of metric definitions to use for the target system. Supported values are: auto, instrumentation and legacy. Supported by: jmx-scraper",
       "type": "string"
     },

@@ -82,6 +82,7 @@
           "type": "boolean"
         },
         "hostname_source": {
+          "deprecated": true,
           "description": "HostnameSource is the source for the hostname of host metadata. This hostname is used for identifying the infrastructure list, host map and host tag information related to the host where the Datadog exporter is running. Changing this setting will not change the host used to tag your metrics, traces and logs in any way. For remote hosts, see https://docs.datadoghq.com/opentelemetry/schema_semantics/host_metadata/. Valid values are 'first_resource' and 'config_or_system': - 'first_resource' picks the host metadata hostname from the resource attributes on the first OTLP payload that gets to the exporter. If the first payload lacks hostname-like attributes, it will fallback to 'config_or_system'. **Do not use this hostname source if receiving data from multiple hosts**. - 'config_or_system' picks the host metadata hostname from the 'hostname' setting, If this is empty it will use available system APIs and cloud provider endpoints. The default is 'config_or_system'.",
           "type": "string"
         },
@@ -231,6 +232,7 @@
               "type": "boolean"
             },
             "send_count_sum_metrics": {
+              "deprecated": true,
               "description": "SendCountSum states if the export should send .sum and .count metrics for histograms. The default is false. Deprecated: [v0.75.0] Use `send_aggregation_metrics` (HistogramConfig.SendAggregations) instead.",
               "type": "boolean"
             }
@@ -483,6 +485,7 @@
           "type": "array"
         },
         "peer_service_aggregation": {
+          "deprecated": true,
           "description": "If set to true, enables `peer.service` aggregation in the exporter. If disabled, aggregated trace stats will not include `peer.service` as a dimension. For the best experience with `peer.service`, it is recommended to also enable `compute_stats_by_span_kind`. If enabling both causes the datadog exporter to consume too many resources, try disabling `compute_stats_by_span_kind` first. If the overhead remains high, it will be due to a high cardinality of `peer.service` values from the traces. You may need to check your instrumentation. Deprecated: Please use PeerTagsAggregation instead",
           "type": "boolean"
         },

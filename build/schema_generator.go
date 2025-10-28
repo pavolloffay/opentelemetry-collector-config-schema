@@ -364,13 +364,16 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, par
 
 	// Add description from source code comments
 	// Extract comment for this field from the parent struct where it's declared
+	var description string
 	if comment := sg.extractFieldComment(parentType, field.Name); comment != "" {
+		description = comment
 		property["description"] = comment
 	}
 
 	// Add description from field documentation tag if available and no comment was found
 	if property["description"] == nil {
 		if desc := field.Tag.Get("description"); desc != "" {
+			description = desc
 			property["description"] = desc
 		}
 	}
@@ -378,8 +381,15 @@ func (sg *SchemaGenerator) generatePropertySchema(field reflect.StructField, par
 	// Add description from yaml tag if available and no other description was found
 	if property["description"] == nil {
 		if desc := field.Tag.Get("yaml"); desc != "" && !strings.Contains(desc, ",") {
+			description = desc
 			property["description"] = desc
 		}
+	}
+
+	// Check for deprecated indicators in various places
+	deprecated := sg.isFieldDeprecated(field, description)
+	if deprecated {
+		property["deprecated"] = true
 	}
 
 	return property, nil
@@ -670,6 +680,59 @@ func (sg *SchemaGenerator) cleanComment(comment string) string {
 	}
 
 	return strings.Join(cleanedLines, " ")
+}
+
+// isFieldDeprecated checks if a field is deprecated based on various indicators
+func (sg *SchemaGenerator) isFieldDeprecated(field reflect.StructField, description string) bool {
+	// Check struct tag for deprecated indicator
+	if tag := field.Tag.Get("deprecated"); tag != "" {
+		// Any value in the deprecated tag means it's deprecated
+		return true
+	}
+
+	// Check if the field has a deprecation tag
+	if tag := field.Tag.Get("mapstructure"); tag != "" {
+		parts := strings.Split(tag, ",")
+		for _, part := range parts {
+			if strings.TrimSpace(part) == "deprecated" {
+				return true
+			}
+		}
+	}
+
+	// Check json tag for deprecated indicator
+	if tag := field.Tag.Get("json"); tag != "" {
+		parts := strings.Split(tag, ",")
+		for _, part := range parts {
+			if strings.TrimSpace(part) == "deprecated" {
+				return true
+			}
+		}
+	}
+
+	// Check description/comment text for deprecated indicators
+	if description != "" {
+		lowerDesc := strings.ToLower(description)
+		deprecatedKeywords := []string{
+			"deprecated",
+			"deprecation",
+			"no longer",
+			"obsolete",
+			"legacy",
+			"do not use",
+			"will be removed",
+			"use instead",
+			"replaced by",
+		}
+
+		for _, keyword := range deprecatedKeywords {
+			if strings.Contains(lowerDesc, keyword) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // writeSchemaToFile writes a JSON schema to a file

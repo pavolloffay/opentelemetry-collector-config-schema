@@ -246,6 +246,11 @@
       "description": "LogLevel sets the logging verbosity (debug, info, warn, error)",
       "type": "string"
     },
+    "old_endpoint": {
+      "deprecated": true,
+      "description": "OldEndpoint is deprecated and will be removed in v2.0. Use HTTPServer instead.",
+      "type": "string"
+    },
     "table_aliases": {
       "additionalProperties": {
         "type": "string"

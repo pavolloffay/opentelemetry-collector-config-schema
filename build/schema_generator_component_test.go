@@ -112,6 +112,9 @@ type TestReceiverConfig struct {
 	// TableAliases maps short names to full table names for convenience
 	TableAliases map[string]string `mapstructure:"table_aliases,omitempty"`
 
+	// OldEndpoint is deprecated and will be removed in v2.0. Use HTTPServer instead.
+	OldEndpoint string `mapstructure:"old_endpoint,omitempty"`
+
 	// Embedded standard component configuration
 	component.Config `mapstructure:",squash"`
 }
@@ -142,6 +145,7 @@ func CreateDefaultConfig() component.Config {
 			"u": "users",
 			"o": "orders",
 		},
+		OldEndpoint: "", // Default empty value for deprecated field
 	}
 }
 

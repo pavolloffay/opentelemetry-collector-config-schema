@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "add_metric_suffixes": {
+      "deprecated": true,
       "description": "AddMetricSuffixes controls whether suffixes are added to metric names. Defaults to true. Deprecated: Use TranslationStrategy instead. This setting is ignored when TranslationStrategy is explicitly set.",
       "type": "boolean"
     },

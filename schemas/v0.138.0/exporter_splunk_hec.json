@@ -11,6 +11,7 @@
       "type": "object"
     },
     "batcher": {
+      "deprecated": true,
       "description": "DeprecatedBatcher is the deprecated batcher configuration.",
       "properties": {
         "enabled": {

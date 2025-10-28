@@ -56,6 +56,7 @@
       "type": "string"
     },
     "metrics_table_name": {
+      "deprecated": true,
       "description": "MetricsTableName is the table name for metrics. default is `otel_metrics`. Deprecated: MetricsTableName exists for historical compatibility and should not be used. To set the metrics tables name, use the MetricsTables parameter instead.",
       "type": "string"
     },

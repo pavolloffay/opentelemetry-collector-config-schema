@@ -84,9 +84,11 @@
       "type": "array"
     },
     "flush": {
+      "deprecated": true,
       "description": "Deprecated: [v0.136.0] This config is now deprecated. Use `sending_queue::batch` instead. If this config is defined then it will be used to configure sending queue's batch provided sending queue's config are not explicitly defined.",
       "properties": {
         "bytes": {
+          "deprecated": true,
           "description": "Bytes sets the send buffer flushing limit. Bytes is now deprecated. Use `sending_queue::batch::{min, max}_size` with `bytes` sizer to configure batching based on bytes. If this config option is defined then it will be used to configure `sending_queue::batch::max_size` provided it is not explcitly defined.",
           "type": "integer"
         },
@@ -154,6 +156,7 @@
     "logs_dynamic_index": {
       "properties": {
         "enabled": {
+          "deprecated": true,
           "description": "Enabled enables dynamic index routing. Deprecated: [v0.122.0] This config is now ignored. Dynamic index routing is always done by default.",
           "type": "boolean"
         }
@@ -216,6 +219,7 @@
       "type": "integer"
     },
     "metadata_keys": {
+      "deprecated": true,
       "description": "Experimental: MetadataKeys defines a list of client.Metadata keys that will be used as partition keys for when batcher is enabled and will be added to the exporter's telemetry if defined. The config only applies when `sending_queue::batch` is defined or when the, now deprecated, batcher is used (set to `true` or `false`). The metadata keys are converted to lower case as key lookups for client metadata is case insensitive. This means that the metric produced by internal telemetry will also have the attribute in lower case. Keys are case-insensitive and duplicates will trigger a validation error.",
       "items": {
         "type": "string"
@@ -225,6 +229,7 @@
     "metrics_dynamic_index": {
       "properties": {
         "enabled": {
+          "deprecated": true,
           "description": "Enabled enables dynamic index routing. Deprecated: [v0.122.0] This config is now ignored. Dynamic index routing is always done by default.",
           "type": "boolean"
         }
@@ -249,6 +254,7 @@
       "type": "array"
     },
     "num_workers": {
+      "deprecated": true,
       "description": "NumWorkers configures the number of workers publishing bulk requests. Deprecated: [v0.136.0] This config is now deprecated. Use `sending_queue::num_consumers` instead. If this config is defined and `sending_queue::num_consumers` is not defined then it will be used to set `sending_queue::num_consumers`.",
       "type": "integer"
     },
@@ -281,6 +287,7 @@
           "type": "string"
         },
         "max_requests": {
+          "deprecated": true,
           "description": "MaxRequests configures how often an HTTP request is attempted before it is assumed to be failed. Deprecated: use MaxRetries instead.",
           "type": "integer"
         },
@@ -454,6 +461,7 @@
     "traces_dynamic_index": {
       "properties": {
         "enabled": {
+          "deprecated": true,
           "description": "Enabled enables dynamic index routing. Deprecated: [v0.122.0] This config is now ignored. Dynamic index routing is always done by default.",
           "type": "boolean"
         }

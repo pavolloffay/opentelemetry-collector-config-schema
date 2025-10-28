@@ -14,6 +14,7 @@
       "type": "integer"
     },
     "mode": {
+      "deprecated": true,
       "description": "Mode selects the sampling behavior. Supported values: - \"hash_seed\": the legacy behavior of this processor. Using an FNV hash combined with the HashSeed value, this sampler performs a non-consistent probabilistic downsampling.  The number of spans output is expected to equal SamplingPercentage (as a ratio) times the number of spans inpout, assuming good behavior from FNV and good entropy in the hashed attributes or TraceID. - \"equalizing\": Using an OTel-specified consistent sampling mechanism, this sampler selectively reduces the effective sampling probability of arriving spans.  This can be useful to select a small fraction of complete traces from a stream with mixed sampling rates.  The rate of spans passing through depends on how much sampling has already been applied.  If an arriving span was head sampled at the same probability it passes through.  If the span arrives with lower probability, a warning is logged because it means this sampler is configured with too large a sampling probability to ensure complete traces. - \"proportional\": Using an OTel-specified consistent sampling mechanism, this sampler reduces the effective sampling probability of each span by `SamplingProbability`.",
       "type": "string"
     },

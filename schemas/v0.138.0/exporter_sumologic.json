@@ -15,6 +15,7 @@
       "type": "string"
     },
     "compress_encoding": {
+      "deprecated": true,
       "description": "Compression encoding format, either empty string, gzip or deflate (default gzip) Empty string means no compression NOTE: CompressEncoding is deprecated and will be removed in an upcoming release",
       "type": "string"
     },

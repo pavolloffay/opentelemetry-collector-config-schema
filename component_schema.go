@@ -293,3 +293,49 @@ func (sm *SchemaManager) GetComponentNames(componentType ComponentType, version 
 
 	return componentNames, nil
 }
+
+// GetDeprecatedFields returns a list of deprecated field paths for a specific component
+func (sm *SchemaManager) GetDeprecatedFields(componentType ComponentType, componentName string, version string) ([]string, error) {
+	// Get the component schema
+	schema, err := sm.GetComponentSchema(componentType, componentName, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schema for %s %s v%s: %w", componentType, componentName, version, err)
+	}
+
+	var deprecatedFields []string
+
+	// Recursively traverse the schema to find deprecated fields
+	sm.findDeprecatedFields(schema.Schema, "", &deprecatedFields)
+
+	return deprecatedFields, nil
+}
+
+// findDeprecatedFields recursively searches for deprecated fields in a JSON schema
+func (sm *SchemaManager) findDeprecatedFields(schema map[string]interface{}, currentPath string, deprecatedFields *[]string) {
+	// Check if this schema has properties
+	if properties, ok := schema["properties"].(map[string]interface{}); ok {
+		// Iterate through all properties
+		for fieldName, fieldSchema := range properties {
+			// Build the current field path
+			var fieldPath string
+			if currentPath == "" {
+				fieldPath = fieldName
+			} else {
+				fieldPath = currentPath + "." + fieldName
+			}
+
+			// Check if the field schema is a map
+			if fieldSchemaMap, ok := fieldSchema.(map[string]interface{}); ok {
+				// Check if this field is marked as deprecated
+				if deprecated, exists := fieldSchemaMap["deprecated"]; exists {
+					if deprecatedBool, ok := deprecated.(bool); ok && deprecatedBool {
+						*deprecatedFields = append(*deprecatedFields, fieldPath)
+					}
+				}
+
+				// Recursively check nested objects
+				sm.findDeprecatedFields(fieldSchemaMap, fieldPath, deprecatedFields)
+			}
+		}
+	}
+}

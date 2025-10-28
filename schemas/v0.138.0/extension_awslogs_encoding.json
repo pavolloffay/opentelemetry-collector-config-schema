@@ -6,6 +6,7 @@
       "type": "string"
     },
     "vpc_flow_log": {
+      "deprecated": true,
       "description": "Deprecated: use VPCFlowLogConfig instead. It will be removed in v0.138.0",
       "properties": {
         "file_format": {

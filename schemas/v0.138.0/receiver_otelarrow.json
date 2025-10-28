@@ -18,6 +18,7 @@
     "arrow": {
       "properties": {
         "admission_limit_mib": {
+          "deprecated": true,
           "description": "Deprecated: This field is no longer supported, use cfg.Admission.RequestLimitMiB instead.",
           "type": "integer"
         },
@@ -26,6 +27,7 @@
           "type": "integer"
         },
         "waiter_limit": {
+          "deprecated": true,
           "description": "Deprecated: This field is no longer supported, use cfg.Admission.WaiterLimit instead.",
           "type": "integer"
         },

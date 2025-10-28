@@ -35,6 +35,7 @@
           "type": "object"
         },
         "plain_text": {
+          "deprecated": true,
           "description": "PlainText is an alias for SASL/PLAIN authentication. Deprecated [v0.123.0]: use SASL with Mechanism set to PLAIN instead.",
           "properties": {
             "password": {
@@ -79,6 +80,7 @@
           "type": "object"
         },
         "tls": {
+          "deprecated": true,
           "description": "TLS holds TLS configuration for connecting to Kafka brokers. Deprecated [v0.124.0]: use ClientConfig.TLS instead. This will be used only if ClientConfig.TLS is not set.",
           "properties": {
             "ca_file": {
@@ -189,6 +191,7 @@
       "type": "boolean"
     },
     "encoding": {
+      "deprecated": true,
       "description": "Encoding holds the encoding of Kafka message values. Encoding has no default. If explicitly specified, it will take precedence over the default values of logs::encoding, metrics::encoding, and traces::encoding. Deprecated [v0.124.0]: use logs::encoding, metrics::encoding, and traces::encoding instead.",
       "type": "string"
     },
@@ -527,6 +530,7 @@
       "type": "object"
     },
     "topic": {
+      "deprecated": true,
       "description": "Topic holds the name of the Kafka topic to which data should be exported. Topic has no default. If explicitly specified, it will take precedence over the default values of logs::topic, metrics::topic, and traces::topic. Deprecated [v0.124.0]: use logs::topic, metrics::topic, and traces::topic instead.",
       "type": "string"
     },

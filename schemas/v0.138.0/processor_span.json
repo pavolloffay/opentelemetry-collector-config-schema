@@ -287,6 +287,7 @@
               "type": "boolean"
             },
             "rules": {
+              "deprecated": true,
               "description": "Rules is a list of rules to extract attribute values from span name. The values in the span name are replaced by extracted attribute names. Each rule in the list is a regex pattern string. Span name is checked against the regex. If it matches then all named subexpressions of the regex are extracted as attributes and are added to the span. Each subexpression name becomes an attribute name and subexpression matched portion becomes the attribute value. The matched portion in the span name is replaced by extracted attribute name. If the attributes already exist in the span then they will be overwritten. The process is repeated for all rules in the order they are specified. Each subsequent rule works on the span name that is the output after processing the previous rule.",
               "items": {
                 "type": "string"

@@ -38,6 +38,7 @@
       "type": "object"
     },
     "custom_endpoint": {
+      "deprecated": true,
       "description": "**Deprecation** Custom endpoint to ship traces to. Use only for dev and tests.",
       "type": "string"
     },
@@ -46,6 +47,7 @@
       "type": "boolean"
     },
     "drain_interval": {
+      "deprecated": true,
       "description": "**Deprecation** Queue drain interval in seconds. Defaults to `3`.",
       "type": "integer"
     },
@@ -132,10 +134,12 @@
       "type": "string"
     },
     "queue_capacity": {
+      "deprecated": true,
       "description": "**Deprecation** Queue capacity in bytes. Defaults to `20 * 1024 * 1024` ~ 20mb.",
       "type": "integer"
     },
     "queue_max_length": {
+      "deprecated": true,
       "description": "**Deprecation** Max number of items allowed in the queue. Defaults to `500000`.",
       "type": "integer"
     },
