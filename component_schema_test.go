@@ -2,6 +2,7 @@ package collectorconfigschema
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -453,6 +454,36 @@ func TestSchemaManager_GetComponentNames_InvalidVersion(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to read schema directory", "Error should mention directory read failure")
 
 	t.Logf("Correctly handled non-existent version: %v", err)
+}
+
+func TestSchemaManager_GetChangelog_WithTestData(t *testing.T) {
+	manager := NewSchemaManager()
+	version := "0.138.0"
+
+	// Get changelog from the method
+	actualChangelog, err := manager.GetChangelog(version)
+	require.NoError(t, err, "Failed to get changelog for version %s", version)
+	require.NotEmpty(t, actualChangelog, "Changelog content should not be empty")
+
+	// Read expected changelog from testdata
+	expectedBytes, err := os.ReadFile("testdata/changelog-0.138.0.md")
+	require.NoError(t, err, "Failed to read expected changelog from testdata")
+	expectedChangelog := string(expectedBytes)
+	require.NotEmpty(t, expectedChangelog, "Expected changelog from testdata should not be empty")
+
+	// Compare the content
+	assert.Equal(t, expectedChangelog, actualChangelog, "Changelog content should match testdata file")
+}
+
+func TestSchemaManager_GetChangelog_NonExistentVersion(t *testing.T) {
+	manager := NewSchemaManager()
+
+	// Test with a non-existent version
+	_, err := manager.GetChangelog("999.999.999")
+	require.Error(t, err, "Expected error for non-existent version")
+	assert.Contains(t, err.Error(), "changelog not found for version 999.999.999", "Error should mention the specific version")
+
+	t.Logf("✅ Correctly returned error for non-existent version: %v", err)
 }
 
 // Helper function for minimum value

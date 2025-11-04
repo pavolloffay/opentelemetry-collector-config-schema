@@ -1,4 +1,5 @@
 .bin/
+tmp/
 
 build/otelcol-contrib
 build/test-schemas

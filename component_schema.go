@@ -134,6 +134,19 @@ func (sm *SchemaManager) GetComponentReadme(componentType ComponentType, compone
 	return string(data), nil
 }
 
+// GetChangelog returns the changelog content for a specific collector version
+func (sm *SchemaManager) GetChangelog(version string) (string, error) {
+	// Load changelog.md from embedded filesystem
+	schemaPath := fmt.Sprintf("schemas/%s", version)
+	embeddedFilepath := filepath.Join(schemaPath, "changelog.md")
+	data, err := fs.ReadFile(embeddedSchemas, embeddedFilepath)
+	if err != nil {
+		return "", fmt.Errorf("changelog not found for version %s", version)
+	}
+
+	return string(data), nil
+}
+
 // listEmbeddedComponents lists components from embedded filesystem
 func (sm *SchemaManager) listEmbeddedComponents(version string) (map[ComponentType][]string, error) {
 	components := make(map[ComponentType][]string)

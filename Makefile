@@ -1,6 +1,10 @@
 OCB_VERSION ?= 0.138.0
 SCHEMA_OUTPUT_DIR ?= ../schemas/$(OCB_VERSION)
 
+# Default target - runs both schema generation and changelog processing
+.PHONY: all
+all: generate-schemas changelogs
+
 .PHONY: install-ocb
 install-ocb:
 	@mkdir -p .bin
@@ -25,6 +29,21 @@ generate-schemas:
 	OCB_VERSION=0.138.0 make build-collector
 	cd build && go mod vendor && SCHEMA_OUTPUT_DIR=../schemas/0.138.0 go test -run TestGenerateAllSchemas -v
 
+.PHONY: changelogs
+changelogs:
+	@echo "Downloading OpenTelemetry CHANGELOG files..."
+	@echo "Downloading opentelemetry-collector CHANGELOG.md..."
+	mkdir -p tmp
+	@curl -sSL -o tmp/opentelemetry-collector-CHANGELOG.md \
+		https://raw.githubusercontent.com/open-telemetry/opentelemetry-collector/main/CHANGELOG.md
+	@echo "Downloading opentelemetry-collector-contrib CHANGELOG.md..."
+	@curl -sSL -o tmp/opentelemetry-collector-CHANGELOG-contrib.md \
+		https://raw.githubusercontent.com/open-telemetry/opentelemetry-collector-contrib/main/CHANGELOG.md
+	@echo "CHANGELOG files downloaded to schemas/ directory"
+	@echo "Parsing changelog files and extracting version-specific content..."
+	@./scripts/parse_changelogs.sh
+	@echo "Version-specific changelog files generated"
+
 .PHONY: clean-schemas
 clean-schemas:
 	rm -rf build/$(SCHEMA_OUTPUT_DIR)
@@ -39,10 +58,12 @@ test:
 .PHONY: clean
 clean: clean-schemas
 	rm -rf _build .bin build/schema-generator
+	rm -f ../schemas/opentelemetry-collector-CHANGELOG.md ../schemas/opentelemetry-collector-contrib-CHANGELOG.md
 
 .PHONY: help
 help:
 	@echo "Available targets:"
+	@echo "  all (default)               - Generate JSON schemas and process changelogs"
 	@echo "  install-ocb                 - Install OpenTelemetry Collector Builder to ./.bin"
 	@echo "                                Override version with: make OCB_VERSION=v0.110.0 install-ocb"
 	@echo "  build-collector             - Build OpenTelemetry collector using manifest.yaml"
@@ -50,6 +71,7 @@ help:
 	@echo "  generate-schemas            - Generate JSON schemas using go test"
 	@echo "                                Override output dir with: make SCHEMA_OUTPUT_DIR=my-schemas generate-schemas"
 	@echo "  generate-schemas-standalone - Generate JSON schemas using standalone tool"
+	@echo "  changelogs                  - Download CHANGELOG.md files and extract version-specific content"
 	@echo "  test                        - Run tests in all packages"
 	@echo "  clean-schemas               - Remove generated schema files"
 	@echo "  clean                       - Remove build artifacts and local binaries"
